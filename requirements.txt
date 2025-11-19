@@ -1,0 +1,25 @@
+# Core ML/AI
+torch>=2.0.0
+torchvision>=0.15.0
+torchmetrics>=1.0.0
+
+# Computer Vision
+opencv-python-headless>=4.8.0
+scikit-image>=0.21.0
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# Super Resolution
+realesrgan>=0.3.0
+basicsr>=1.4.0
+
+# Data & HF
+datasets>=2.14.0
+huggingface_hub>=0.17.0
+
+# UI & Utils
+gradio>=4.0.0
+tqdm>=4.65.0
+
+# Testing
+pytest>=7.4.0
