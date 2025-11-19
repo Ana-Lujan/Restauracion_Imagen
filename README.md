@@ -1,3 +1,15 @@
+---
+title: Restauración y Enhancement de Imágenes
+emoji: 🎨
+colorFrom: blue
+colorTo: green
+sdk: gradio
+sdk_version: 4.0.0
+app_file: app_gradio.py
+pinned: false
+---
+
+# 🎨 Mi Proyecto de Restauración y Mejora de Imágenes
 # 🎨 Mi Proyecto de Restauración y Mejora de Imágenes
 
 ## 👋 ¡Hola! Soy Ana Lujan
