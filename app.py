@@ -2,6 +2,7 @@
 """
 Aplicación web Flask para restauración y enhancement de imágenes.
 Alternativa ligera a Gradio para evitar problemas de dependencias.
+# Force rebuild commit
 """
 
 from flask import Flask, render_template, request, jsonify
