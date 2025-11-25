@@ -359,21 +359,27 @@ application = app
 
 if __name__ == '__main__':
     try:
-        # Configuración para desarrollo local y HF Spaces
-        port = int(os.environ.get('PORT', 5000))  # Puerto 5000 para desarrollo local, 7860 para HF
-        host = '127.0.0.1' if 'PORT' not in os.environ else '0.0.0.0'  # Local para desarrollo, 0.0.0.0 para HF
+        # Detección inteligente de entorno: HF Spaces vs desarrollo local
+        is_hf_spaces = 'HF_SPACE_ID' in os.environ or 'SPACE_ID' in os.environ
 
-        logger.info(f"Iniciando aplicación web en {host}:{port}")
-        if 'PORT' in os.environ:
+        if is_hf_spaces:
+            port = int(os.environ.get('PORT', 7860))
+            host = '0.0.0.0'
+            debug_mode = False
             logger.info("Ejecutándose en HF Spaces")
         else:
+            port = 5000  # Puerto fijo para desarrollo local
+            host = '127.0.0.1'
+            debug_mode = True
             logger.info("Ejecutándose en modo desarrollo local")
             print(f"🌐 Accede en: http://{host}:{port}")
+
+        logger.info(f"Iniciando aplicación web en {host}:{port}")
 
         app.run(
             host=host,
             port=port,
-            debug=True,  # Habilitar debug en desarrollo
+            debug=debug_mode,
             threaded=True
         )
     except Exception as e:
