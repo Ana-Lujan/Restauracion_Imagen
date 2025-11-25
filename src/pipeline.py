@@ -57,32 +57,10 @@ def load_srcnn_model(model_path: str = "model/srcnn_best.pth", device: str = 'cp
 
 def load_realesrgan_model():
     """
-    Carga el modelo Real-ESRGAN de forma lazy para super resolución.
+    Real-ESRGAN no disponible en HF Spaces por restricciones de descarga.
+    Retorna None para usar fallback.
     """
-    global _realesrgan_model
-    if _realesrgan_model is not None:
-        return _realesrgan_model
-
-    try:
-        from realesrgan import RealESRGANer
-        from basicsr.archs.rrdbnet_arch import RRDBNet
-
-        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
-        netscale = 4
-        upsampler = RealESRGANer(
-            scale=netscale,
-            model_path='https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth',
-            model=model,
-            tile=0,
-            tile_pad=10,
-            pre_pad=0,
-            half=False  # CPU
-        )
-        _realesrgan_model = upsampler
-        return upsampler
-    except Exception as e:
-        print(f"Advertencia: No se pudo cargar Real-ESRGAN ({str(e)}). Super resolución no disponible.")
-        return None
+    return None
 
 def apply_restoration(image, params=None):
     """
@@ -158,8 +136,6 @@ def apply_enhancement(image, scale_factor=2, method='srcnn', params=None):
     # Super-resolución según método
     if method == 'srcnn':
         image = apply_srcnn_enhancement(image, scale_factor)
-    elif method == 'realesrgan':
-        image = apply_realesrgan_enhancement(image, scale_factor)
     else:  # opencv
         h, w = image.shape[:2]
         new_h, new_w = h * scale_factor, w * scale_factor
@@ -205,31 +181,6 @@ def apply_srcnn_enhancement(image, scale_factor=2):
     output_np = (output.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
     return cv2.cvtColor(output_np, cv2.COLOR_RGB2BGR)
 
-def apply_realesrgan_enhancement(image, scale_factor=4):
-    """
-    Aplica enhancement usando Real-ESRGAN.
-
-    Args:
-        image: Imagen BGR
-        scale_factor: Factor de escala (usualmente 4)
-
-    Returns:
-        Imagen mejorada con Real-ESRGAN
-    """
-    upsampler = load_realesrgan_model()
-    if upsampler is None:
-        # Fallback
-        h, w = image.shape[:2]
-        new_h, new_w = h * scale_factor, w * scale_factor
-        return cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
-
-    # Real-ESRGAN espera RGB
-    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    # Procesar
-    output, _ = upsampler.enhance(rgb_image, outscale=scale_factor)
-
-    return cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
 
 def image_enhancement_pipeline(image_path, enhancement_type="restauracion", enhancement_method="opencv",
                               scale_factor=2, **params):
