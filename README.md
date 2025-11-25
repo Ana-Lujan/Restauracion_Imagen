@@ -3,7 +3,7 @@ title: Sistema de Restauración y Mejora de Imágenes
 emoji: 🎨
 colorFrom: blue
 colorTo: green
-sdk: static
+sdk: docker
 app_file: app.py
 pinned: false
 ---
