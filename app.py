@@ -12,6 +12,11 @@ from pathlib import Path
 import base64
 from io import BytesIO
 from PIL import Image, ImageFilter
+import logging
+
+# Configurar logging para desarrollo académico
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 # Funciones de procesamiento simplificadas para compatibilidad HF
 # Funciones simplificadas solo con Pillow
 
@@ -25,6 +30,7 @@ UPLOAD_FOLDER.mkdir(exist_ok=True)
 @app.route('/')
 def index():
     """Página principal con interfaz de usuario."""
+    logger.info("Acceso a página principal")
     return """
 <!DOCTYPE html>
 <html lang="es">
@@ -263,6 +269,7 @@ def index():
 @app.route('/process', methods=['POST'])
 def process():
     """Procesa la imagen subida con máxima robustez."""
+    logger.info("Procesamiento de imagen iniciado")
     try:
         # Verificar archivo
         if 'image' not in request.files:
@@ -344,22 +351,31 @@ def process():
 @app.route('/health')
 def health():
     """Endpoint de salud para verificar que la app funciona."""
+    logger.info("Health check solicitado")
     return jsonify({'status': 'healthy', 'message': 'Sistema de restauración y enhancement operativo'})
 
 # Para compatibilidad con gunicorn en HF Spaces
 application = app
 
 if __name__ == '__main__':
-    # Configuración para HF Spaces
-    port = int(os.environ.get('PORT', 7860))  # HF Spaces default port
-    host = '0.0.0.0'
+    try:
+        # Configuración para desarrollo local y HF Spaces
+        port = int(os.environ.get('PORT', 5000))  # Puerto 5000 para desarrollo local, 7860 para HF
+        host = '127.0.0.1' if 'PORT' not in os.environ else '0.0.0.0'  # Local para desarrollo, 0.0.0.0 para HF
 
-    print(f"🚀 Iniciando aplicación web en {host}:{port}")
-    print("📱 Ejecutándose en HF Spaces")
+        logger.info(f"Iniciando aplicación web en {host}:{port}")
+        if 'PORT' in os.environ:
+            logger.info("Ejecutándose en HF Spaces")
+        else:
+            logger.info("Ejecutándose en modo desarrollo local")
+            print(f"🌐 Accede en: http://{host}:{port}")
 
-    app.run(
-        host=host,
-        port=port,
-        debug=False,
-        threaded=True
-    )
+        app.run(
+            host=host,
+            port=port,
+            debug=True,  # Habilitar debug en desarrollo
+            threaded=True
+        )
+    except Exception as e:
+        logger.error(f"Error al iniciar la aplicación: {e}")
+        raise

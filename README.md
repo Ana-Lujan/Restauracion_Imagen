@@ -61,7 +61,7 @@ python app.py
 ```
 
 ### Acceso a la Aplicación
-Una vez ejecutada, acceder en: `http://localhost:7860`
+Una vez ejecutada, acceder en: `http://127.0.0.1:5000` (desarrollo local) o `http://localhost:7860` (HF Spaces)
 
 ## 📊 Algoritmos Implementados
 
