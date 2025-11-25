@@ -31,7 +31,86 @@ UPLOAD_FOLDER.mkdir(exist_ok=True)
 def index():
     """Página principal con interfaz de usuario."""
     logger.info("Acceso a página principal")
-    return render_template('index.html')
+    return """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Restauración de Imágenes</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f0f0f0; }
+        h1 { color: #333; text-align: center; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .upload-section { text-align: center; margin: 20px 0; padding: 20px; border: 2px dashed #ccc; border-radius: 8px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .results { display: none; margin-top: 20px; }
+        .image-container { display: inline-block; margin: 10px; }
+        img { max-width: 300px; border: 1px solid #ddd; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Sistema de Restauración y Enhancement de Imágenes</h1>
+        <p>Proyecto académico - IFTS 24</p>
+
+        <div class="upload-section">
+            <h2>📤 Subir Imagen</h2>
+            <input type="file" id="imageInput" accept="image/*">
+            <br><br>
+            <button onclick="processImage()">🚀 Procesar Imagen</button>
+        </div>
+
+        <div class="results" id="results">
+            <div class="image-container">
+                <h3>📷 Imagen Original</h3>
+                <img id="originalImage" alt="Original">
+            </div>
+            <div class="image-container">
+                <h3>✨ Imagen Procesada</h3>
+                <img id="processedImage" alt="Procesada">
+            </div>
+        </div>
+
+        <div id="report" style="margin-top: 20px; padding: 10px; background: #f8f8f8; border-radius: 4px;"></div>
+    </div>
+
+    <script>
+        async function processImage() {
+            const input = document.getElementById('imageInput');
+            if (!input.files[0]) {
+                alert('Selecciona una imagen primero');
+                return;
+            }
+
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('enhancement_type', 'restauracion');
+            formData.append('enhancement_method', 'opencv');
+            formData.append('scale_factor', '2');
+
+            try {
+                const response = await fetch('/process', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('originalImage').src = URL.createObjectURL(file);
+                    document.getElementById('processedImage').src = data.image;
+                    document.getElementById('results').style.display = 'block';
+                    document.getElementById('report').textContent = data.report;
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) {
+                alert('Error de conexión: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
+"""
 
 @app.route('/process', methods=['POST'])
 def process():
