@@ -121,6 +121,11 @@ def health():
     logger.info("Health check solicitado")
     return jsonify({'status': 'healthy', 'message': 'Sistema de restauración y enhancement operativo'})
 
+@app.route('/test')
+def test():
+    """Ruta de prueba simple."""
+    return '<h1>¡Hola! La app funciona</h1><p>Si ves esto, Flask está corriendo correctamente.</p>'
+
 # Para compatibilidad con gunicorn en HF Spaces
 application = app
 
