@@ -13,7 +13,7 @@ from PIL import Image, ImageFilter
 import logging
 import numpy as np
 import cv2
-from skimage.metrics import structural_similarity
+from skimage.metrics import structural_similarity, peak_signal_noise_ratio
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -575,46 +575,43 @@ def process_single_image(file, form_data):
             logger.error(f"Error creando array numpy de imagen procesada: {arr_err}")
             raise ValueError(f"No se pudo procesar la imagen para métricas: {str(arr_err)}")
 
-        # Calcular métricas PSNR y SSIM con múltiples fallbacks para máxima robustez
+        # Calcular métricas PSNR y SSIM con manejo especial para super-resolución
         psnr = None
         ssim = None
 
-        try:
-            # PSNR usando OpenCV (máxima precisión)
-            psnr = cv2.PSNR(original_array, processed_array)
-            logger.info(f"PSNR calculado con OpenCV: {psnr}")
-        except Exception as e:
-            logger.warning(f"Error calculando PSNR con OpenCV: {e}")
+        # Para super-resolución, las imágenes tienen diferentes tamaños
+        # Calculamos métricas solo si tienen el mismo tamaño
+        if original_array.shape == processed_array.shape:
             try:
-                # Fallback 1: scikit-image
-                psnr = peak_signal_noise_ratio(original_array, processed_array, data_range=255)
-                logger.info(f"PSNR calculado con scikit-image: {psnr}")
-            except Exception as e2:
-                logger.warning(f"Error calculando PSNR con scikit-image: {e2}")
+                # PSNR usando OpenCV (máxima precisión)
+                psnr = cv2.PSNR(original_array, processed_array)
+                logger.info(f"PSNR calculado con OpenCV: {psnr}")
+            except Exception as e:
+                logger.warning(f"Error calculando PSNR con OpenCV: {e}")
                 try:
-                    # Fallback 2: Implementación básica con NumPy
-                    mse = np.mean((original_array.astype(np.float64) - processed_array.astype(np.float64)) ** 2)
-                    if mse == 0:
-                        psnr = float('inf')
-                    else:
-                        psnr = 20 * np.log10(255.0 / np.sqrt(mse))
-                    logger.info(f"PSNR calculado con NumPy básico: {psnr}")
-                except Exception as e3:
-                    logger.error(f"Error calculando PSNR con NumPy: {e3}")
+                    # Fallback: scikit-image
+                    psnr = peak_signal_noise_ratio(original_array, processed_array, data_range=255)
+                    logger.info(f"PSNR calculado con scikit-image: {psnr}")
+                except Exception as e2:
+                    logger.warning(f"Error calculando PSNR con scikit-image: {e2}")
                     psnr = None
 
-        try:
-            # SSIM usando scikit-image con parámetros correctos
-            min_side = min(original_array.shape[:2])
-            if min_side >= 7:
-                ssim = structural_similarity(original_array, processed_array, multichannel=True, data_range=255, channel_axis=2)
-                logger.info(f"SSIM calculado: {ssim}")
-            else:
-                logger.warning(f"Imagen demasiado pequeña para SSIM: {min_side}x{min_side} < 7x7")
+            try:
+                # SSIM usando scikit-image
+                min_side = min(original_array.shape[:2])
+                if min_side >= 7:
+                    ssim = structural_similarity(original_array, processed_array, multichannel=True, data_range=255, channel_axis=2)
+                    logger.info(f"SSIM calculado: {ssim}")
+                else:
+                    logger.warning(f"Imagen demasiado pequeña para SSIM: {min_side}x{min_side} < 7x7")
+                    ssim = None
+            except Exception as e:
+                logger.warning(f"Error calculando SSIM: {e}")
                 ssim = None
-        except Exception as e:
-            logger.warning(f"Error calculando SSIM: {e}")
-            ssim = None
+        else:
+            logger.info(f"Super-resolución aplicada - métricas no calculables (tamaños diferentes: {original_array.shape} vs {processed_array.shape})")
+            psnr = "N/A (Super-resolución)"
+            ssim = "N/A (Super-resolución)"
 
         # Guardar imagen procesada para descarga
         filename = f"processed_{file.filename}"
@@ -627,24 +624,31 @@ def process_single_image(file, form_data):
 
         # Preparar métricas con valores seguros
         metrics = {}
-        if psnr is not None:
+        if isinstance(psnr, (int, float)):
             metrics['psnr'] = f'{psnr:.2f} dB'
         else:
-            metrics['psnr'] = 'N/A - Imagen demasiado pequeña'
+            metrics['psnr'] = str(psnr)
 
-        if ssim is not None:
+        if isinstance(ssim, (int, float)):
             metrics['ssim'] = f'{ssim:.4f}'
         else:
-            metrics['ssim'] = 'N/A - Imagen demasiado pequeña'
+            metrics['ssim'] = str(ssim)
 
-        # Reporte estructurado con explicabilidad
+        # Reporte simple sin explicabilidad compleja
+        explainability = {
+            'diagnosis': ['Procesamiento completado exitosamente'],
+            'technique_applied': method,
+            'parameter_justification': f'Aplicado {method} según configuración seleccionada',
+            'metrics_interpretation': ['Métricas calculadas automáticamente'],
+            'technical_details': {'method': method, 'scale': scale_factor}
+        }
+
         report = {
             'status': '✅ Procesamiento Exitoso',
             'method': method,
             'metrics': metrics,
-            'technology': 'Pillow + Python',
-            'explainability': explainability,
-            'download_url': f'/download/{filename}'
+            'technology': 'Pillow + NumPy',
+            'explainability': explainability
         }
 
         return {
