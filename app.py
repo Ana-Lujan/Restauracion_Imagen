@@ -14,6 +14,16 @@ from io import BytesIO
 from PIL import Image, ImageFilter
 import logging
 
+# Imports para modelos avanzados (con fallback)
+try:
+    from realesrgan import RealESRGANer
+    from gfpgan import GFPGANer
+    MODELS_AVAILABLE = True
+    logger.info("Modelos avanzados cargados correctamente")
+except ImportError as e:
+    MODELS_AVAILABLE = False
+    logger.warning(f"Modelos avanzados no disponibles: {e}")
+
 # Configurar logging para desarrollo académico
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -21,11 +31,44 @@ logger = logging.getLogger(__name__)
 # Funciones simplificadas solo con Pillow
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB para imágenes HD/4K
 
-# Crear directorio para uploads temporales
-UPLOAD_FOLDER = Path('temp_uploads')
-UPLOAD_FOLDER.mkdir(exist_ok=True)
+# Configuración segura para archivos temporales
+TEMP_DIR = Path(tempfile.gettempdir()) / 'restauracion_uploads'
+TEMP_DIR.mkdir(exist_ok=True)
+
+# Inicialización de modelos avanzados
+esrgan_model = None
+gfpgan_model = None
+
+if MODELS_AVAILABLE:
+    try:
+        # Real-ESRGAN para super-resolución
+        esrgan_model = RealESRGANer(
+            scale=4,
+            model_path='https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth',
+            model=None,
+            tile=0,
+            tile_pad=10,
+            pre_pad=0,
+            half=False
+        )
+        logger.info("Real-ESRGAN inicializado")
+
+        # GFPGAN para restauración facial
+        gfpgan_model = GFPGANer(
+            model_path='https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth',
+            upscale=4,
+            arch='clean',
+            channel_multiplier=2,
+            bg_upsampler=esrgan_model
+        )
+        logger.info("GFPGAN inicializado")
+
+    except Exception as e:
+        logger.error(f"Error inicializando modelos: {e}")
+        esrgan_model = None
+        gfpgan_model = None
 
 @app.route('/')
 def index():
@@ -174,7 +217,8 @@ def index():
                     <select id="enhancementMethod">
                         <option value="opencv">OpenCV (Procesamiento clásico)</option>
                         <option value="srcnn">SRCNN (Red Neuronal Convolucional)</option>
-                        <option value="real-esrgan">Real-ESRGAN (Modelo Avanzado)</option>
+                        <option value="real-esrgan">Real-ESRGAN (Super-Resolución SOTA)</option>
+                        <option value="gfpgan">GFPGAN (Restauración Facial)</option>
                     </select>
                 </div>
                 <div class="setting-group">
@@ -370,19 +414,39 @@ def process():
                     method = "SRCNN Restauración (Unsharp Mask)"
 
             elif enhancement_method == "real-esrgan":
-                # Real-ESRGAN: Simulación con filtros avanzados
-                if enhancement_type == "enhancement" and scale_factor > 1:
+                # Real-ESRGAN: Modelo SOTA para super-resolución
+                if MODELS_AVAILABLE and esrgan_model and enhancement_type == "enhancement":
+                    import numpy as np
+                    img_array = np.array(image)
+                    processed_array, _ = esrgan_model.enhance(img_array, outscale=scale_factor)
+                    processed = Image.fromarray(processed_array)
+                    method = f"Real-ESRGAN {scale_factor}x (Modelo SOTA)"
+                else:
+                    # Fallback si modelo no disponible
                     w, h = image.size
                     new_w, new_h = w * scale_factor, h * scale_factor
                     processed = image.resize((new_w, new_h), Image.BICUBIC)
-                    # Aplicar mejora adicional
                     processed = processed.filter(ImageFilter.DETAIL)
-                    method = f"Real-ESRGAN {scale_factor}x (Modelo Avanzado)"
+                    method = f"Real-ESRGAN Fallback {scale_factor}x"
+
+            elif enhancement_method == "gfpgan":
+                # GFPGAN: Restauración facial avanzada
+                if MODELS_AVAILABLE and gfpgan_model:
+                    import numpy as np
+                    img_array = np.array(image)
+                    _, _, processed_array = gfpgan_model.enhance(
+                        img_array,
+                        has_aligned=False,
+                        only_center_face=False,
+                        paste_back=True
+                    )
+                    processed = Image.fromarray(processed_array)
+                    method = "GFPGAN Restauración Facial (SOTA)"
                 else:
-                    # Filtros avanzados para restauración
-                    processed = image.filter(ImageFilter.MedianFilter(size=3))
-                    processed = processed.filter(ImageFilter.SHARPEN)
-                    method = "Real-ESRGAN Restauración (Filtros Avanzados)"
+                    # Fallback para restauración facial
+                    processed = image.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+                    processed = processed.filter(ImageFilter.SMOOTH_MORE)
+                    method = "GFPGAN Fallback (Restauración Básica)"
 
             else:  # opencv (default)
                 # OpenCV: Procesamiento clásico
