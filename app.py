@@ -217,7 +217,7 @@ def index():
                     <select id="enhancementMethod">
                         <option value="opencv">OpenCV (Procesamiento clásico)</option>
                         <option value="srcnn">SRCNN (Red Neuronal Convolucional)</option>
-                        <option value="real-esrgan">Real-ESRGAN (Super-Resolución SOTA)</option>
+                        <option value="real-esrgan">Real-ESRGAN x4 (Super-Resolución SOTA)</option>
                         <option value="gfpgan">GFPGAN (Restauración Facial)</option>
                     </select>
                 </div>
