@@ -715,17 +715,17 @@ def apply_beauty_face_filters(image, enhancement_type, scale_factor):
         lab[:, :, 0] = clahe.apply(lab[:, :, 0])
         img_array = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
 
-        # 2. Ajuste de brillo inteligente con corrección gamma
+        # 2. Ajuste de brillo DRAMÁTICO con corrección gamma agresiva
         img_yuv = cv2.cvtColor(img_array, cv2.COLOR_RGB2YUV)
-        # Corrección gamma para pieles
-        img_yuv[:, :, 0] = np.power(img_yuv[:, :, 0] / 255.0, 0.8) * 255.0
+        # Corrección gamma extrema para pieles perfectas
+        img_yuv[:, :, 0] = np.power(img_yuv[:, :, 0] / 255.0, 0.6) * 255.0  # Más agresiva
         img_yuv[:, :, 0] = np.clip(img_yuv[:, :, 0], 0, 255).astype(np.uint8)
         img_array = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2RGB)
 
-        # 3. Mejora de saturación y color para pieles
+        # 3. Mejora EXTREMA de saturación y color para pieles
         hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV).astype(np.float32)
-        hsv[:, :, 1] = hsv[:, :, 1] * 1.3  # Saturación aumentada
-        hsv[:, :, 2] = np.clip(hsv[:, :, 2] * 1.2, 0, 255)  # Brillo aumentado
+        hsv[:, :, 1] = hsv[:, :, 1] * 1.8  # Saturación MUY aumentada
+        hsv[:, :, 2] = np.clip(hsv[:, :, 2] * 1.5, 0, 255)  # Brillo MUY aumentado
         hsv = np.clip(hsv, 0, 255).astype(np.uint8)
         img_array = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
 
@@ -820,10 +820,10 @@ def apply_perfect_enhancement(image, enhancement_type, scale_factor):
         # 2. Corrección de color automática
         img_array = cv2.convertScaleAbs(img_array, alpha=1.1, beta=5)
 
-        # 3. Mejora de saturación inteligente
+        # 3. Mejora de saturación DRAMÁTICA
         hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV).astype(np.float32)
-        hsv[:, :, 1] = hsv[:, :, 1] * 1.15  # Saturación moderada
-        hsv[:, :, 2] = np.clip(hsv[:, :, 2] * 1.05, 0, 255)  # Brillo sutil
+        hsv[:, :, 1] = hsv[:, :, 1] * 1.4  # Saturación alta
+        hsv[:, :, 2] = np.clip(hsv[:, :, 2] * 1.3, 0, 255)  # Brillo alto
         hsv = np.clip(hsv, 0, 255).astype(np.uint8)
         img_array = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
 
@@ -1059,43 +1059,62 @@ def process_single_image(file, form_data):
         else:  # opencv (default) - Ahora con mejoras más notables y robustas
             try:
                 if enhancement_type == "enhancement" and scale_factor > 1:
-                    logger.info(f"Aplicando super-resolución: {scale_factor}x")
+                    logger.info(f"Aplicando super-resolución DRAMÁTICA: {scale_factor}x")
                     w, h = image.size
                     new_w, new_h = w * scale_factor, h * scale_factor
                     processed = image.resize((new_w, new_h), Image.LANCZOS)
 
-                    # Aplicar mejoras adicionales para hacer el cambio más notable
-                    processed = processed.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
+                    # Aplicar mejoras DRAMÁTICAS adicionales
+                    processed = processed.filter(ImageFilter.UnsharpMask(radius=2, percent=250, threshold=5))
                     from PIL import ImageEnhance
                     enhancer = ImageEnhance.Contrast(processed)
-                    processed = enhancer.enhance(1.2)
+                    processed = enhancer.enhance(1.5)  # Más contraste
                     enhancer = ImageEnhance.Brightness(processed)
-                    processed = enhancer.enhance(1.1)
-
-                    method = f"OpenCV Enhanced {scale_factor}x (Super-Resolución + Mejoras)"
-                else:
-                    logger.info("Aplicando restauración avanzada con Pillow")
-                    # Aplicar múltiples filtros para mejora notable
-                    processed = image.filter(ImageFilter.UnsharpMask(radius=2, percent=200, threshold=5))
-
-                    # Ajustes de contraste y brillo
-                    from PIL import ImageEnhance
-                    enhancer = ImageEnhance.Contrast(processed)
-                    processed = enhancer.enhance(1.3)
-                    enhancer = ImageEnhance.Brightness(processed)
-                    processed = enhancer.enhance(1.1)
+                    processed = enhancer.enhance(1.2)  # Más brillo
                     enhancer = ImageEnhance.Sharpness(processed)
-                    processed = enhancer.enhance(1.5)
+                    processed = enhancer.enhance(1.8)  # Más nitidez
 
-                    method = "OpenCV Pro (Restauración Avanzada)"
+                    method = f"OpenCV Enhanced {scale_factor}x (Super-Resolución DRAMÁTICA)"
+                else:
+                    logger.info("Aplicando restauración DRAMÁTICA con Pillow")
+                    # Aplicar múltiples filtros AGRESIVOS para mejora MUY notable
+                    processed = image.filter(ImageFilter.UnsharpMask(radius=3, percent=300, threshold=10))
+
+                    # Ajustes de contraste y brillo DRAMÁTICOS
+                    from PIL import ImageEnhance
+                    enhancer = ImageEnhance.Contrast(processed)
+                    processed = enhancer.enhance(1.8)  # Mucho más contraste
+                    enhancer = ImageEnhance.Brightness(processed)
+                    processed = enhancer.enhance(1.3)  # Más brillo
+                    enhancer = ImageEnhance.Sharpness(processed)
+                    processed = enhancer.enhance(2.0)  # Máxima nitidez
+
+                    # Aplicar filtro adicional para más definición
+                    processed = processed.filter(ImageFilter.DETAIL)
+
+                    method = "OpenCV Pro (Restauración DRAMÁTICA)"
 
                 logger.info(f"Procesamiento OpenCV completado: método={method}")
 
             except Exception as opencv_err:
                 logger.error(f"Error en procesamiento OpenCV básico: {opencv_err}")
-                # Fallback final: al menos aplicar sharpen básico
-                processed = image.filter(ImageFilter.SHARPEN)
-                method = "OpenCV Fallback (Sharpen Básico)"
+                # Fallback DRAMÁTICO: aplicar múltiples mejoras agresivas
+                try:
+                    processed = image.filter(ImageFilter.UnsharpMask(radius=5, percent=400, threshold=15))
+                    from PIL import ImageEnhance
+                    enhancer = ImageEnhance.Contrast(processed)
+                    processed = enhancer.enhance(2.0)  # Contraste máximo
+                    enhancer = ImageEnhance.Brightness(processed)
+                    processed = enhancer.enhance(1.4)  # Brillo alto
+                    enhancer = ImageEnhance.Sharpness(processed)
+                    processed = enhancer.enhance(3.0)  # Nitidez extrema
+                    method = "OpenCV Fallback DRAMÁTICO (Cambios Extremos)"
+                except Exception as fallback_err:
+                    logger.error(f"Error en fallback dramático: {fallback_err}")
+                    # Último recurso: cambios agresivos básicos
+                    processed = image.filter(ImageFilter.EDGE_ENHANCE_MORE)
+                    processed = processed.filter(ImageFilter.SHARPEN)
+                    method = "Último Fallback (Edge Enhance + Sharpen)"
 
         # Validar imagen procesada
         if processed is None:
