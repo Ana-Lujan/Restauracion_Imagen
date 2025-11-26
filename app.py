@@ -94,6 +94,27 @@ def generate_explainability_report(original_array, processed_array, enhancement_
         else:
             parameter_justification = "Aplicación de 8 filtros profesionales: CLAHE, corrección gamma, saturación facial, suavizado bilateral, realce de ojos, nitidez Unsharp Mask, corrección de color LAB, y suavizado final"
 
+    elif enhancement_method == "perfect_enhancement":
+        technique_explanation = "Mejora perfecta total combinando todas las técnicas de procesamiento disponibles para resultado óptimo"
+        if enhancement_type == "enhancement":
+            parameter_justification = f"Secuencia completa de 8 mejoras: CLAHE, corrección de color, saturación inteligente, reducción de ruido bilateral, realce de detalles Unsharp Mask, ecualización de histograma, super-resolución {scale_factor}x, y suavizado final"
+        else:
+            parameter_justification = "Secuencia completa de 7 mejoras: CLAHE, corrección de color, saturación inteligente, reducción de ruido bilateral, realce de detalles Unsharp Mask, ecualización de histograma, y suavizado final"
+
+    elif enhancement_method == "black_white":
+        technique_explanation = "Blanco y negro profesional usando algoritmos fotográficos avanzados con preservación de detalles"
+        if enhancement_type == "enhancement":
+            parameter_justification = f"Conversión B&W con luminancia ponderada, CLAHE para contraste, ajuste de brillo/contraste, nitidez Unsharp Mask, y super-resolución {scale_factor}x"
+        else:
+            parameter_justification = "Conversión B&W con luminancia ponderada, CLAHE para contraste, ajuste de brillo/contraste, y nitidez Unsharp Mask"
+
+    elif enhancement_method == "vintage_filters":
+        technique_explanation = "Filtros vintage profesionales recreando efectos retro de película fotográfica"
+        if enhancement_type == "enhancement":
+            parameter_justification = f"Efectos vintage: sepia, viñeta sutil, granulado de película, ajuste de contraste, y super-resolución {scale_factor}x"
+        else:
+            parameter_justification = "Efectos vintage: sepia, viñeta sutil, granulado de película, y ajuste de contraste"
+
     elif enhancement_method == "gfpgan":
         if MODELS_AVAILABLE:
             technique_explanation = "GFPGAN especializado en restauración facial con preservación de identidad"
@@ -294,6 +315,9 @@ def index():
                     <select id="enhancementMethod">
                         <option value="opencv">OpenCV (Procesamiento clásico)</option>
                         <option value="beauty_face">Beauty Face Pro (Belleza Facial Profesional)</option>
+                        <option value="perfect_enhancement">Perfect Enhancement (Mejora Perfecta Total)</option>
+                        <option value="black_white">Black & White (Blanco y Negro Profesional)</option>
+                        <option value="vintage_filters">Vintage Filters (Filtros Vintage)</option>
                         <option value="srcnn">SRCNN (Red Neuronal Convolucional)</option>
                         <option value="real-esrgan">Real-ESRGAN x4 (Super-Resolución SOTA)</option>
                         <option value="gfpgan">GFPGAN (Restauración Facial)</option>
@@ -767,6 +791,152 @@ def apply_beauty_face_filters(image, enhancement_type, scale_factor):
             logger.warning(f"Error en fallback Beauty Face: {fallback_err}")
             return image.filter(ImageFilter.SHARPEN)
 
+def apply_perfect_enhancement(image, enhancement_type, scale_factor):
+    """Mejora perfecta total combinando todas las técnicas disponibles."""
+    try:
+        # Aplicar secuencia completa de mejoras
+        img_array = np.array(image)
+
+        # 1. CLAHE para contraste base
+        lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+        lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+        img_array = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+
+        # 2. Corrección de color automática
+        img_array = cv2.convertScaleAbs(img_array, alpha=1.1, beta=5)
+
+        # 3. Mejora de saturación inteligente
+        hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV).astype(np.float32)
+        hsv[:, :, 1] = hsv[:, :, 1] * 1.15  # Saturación moderada
+        hsv[:, :, 2] = np.clip(hsv[:, :, 2] * 1.05, 0, 255)  # Brillo sutil
+        hsv = np.clip(hsv, 0, 255).astype(np.uint8)
+        img_array = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+
+        # 4. Reducción de ruido con preservación de detalles
+        img_array = cv2.bilateralFilter(img_array, 7, 50, 50)
+
+        # 5. Realce de detalles con Unsharp Mask
+        gaussian = cv2.GaussianBlur(img_array, (0, 0), 1.0)
+        img_array = cv2.addWeighted(img_array, 1.5, gaussian, -0.5, 0)
+
+        # 6. Ecualización de histograma para iluminación
+        yuv = cv2.cvtColor(img_array, cv2.COLOR_RGB2YUV)
+        yuv[:, :, 0] = cv2.equalizeHist(yuv[:, :, 0])
+        img_array = cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB)
+
+        # 7. Super-resolución si aplica
+        if enhancement_type == "enhancement" and scale_factor > 1:
+            w, h = image.size
+            new_w, new_h = w * scale_factor, h * scale_factor
+            img_array = cv2.resize(img_array, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+
+        # 8. Filtro final de suavizado
+        img_array = cv2.GaussianBlur(img_array, (3, 3), 0.5)
+
+        processed = Image.fromarray(img_array)
+        return processed
+
+    except Exception as e:
+        logger.warning(f"Error en Perfect Enhancement: {e}, usando fallback")
+        # Fallback con mejoras básicas pero efectivas
+        processed = image.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
+        from PIL import ImageEnhance
+        enhancer = ImageEnhance.Contrast(processed)
+        processed = enhancer.enhance(1.2)
+        enhancer = ImageEnhance.Brightness(processed)
+        processed = enhancer.enhance(1.1)
+        return processed
+
+def apply_black_white_filters(image, enhancement_type, scale_factor):
+    """Blanco y negro profesional con múltiples algoritmos."""
+    try:
+        img_array = np.array(image)
+
+        # Método 1: Luminancia ponderada (estándar fotográfico)
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+
+        # Método 2: Desaturación con preservación de detalles
+        # Convertir a LAB y usar canal L
+        lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
+        gray_lab = lab[:, :, 0]
+
+        # Combinar ambos métodos para mejor resultado
+        gray_combined = cv2.addWeighted(gray, 0.7, gray_lab, 0.3, 0)
+
+        # Aplicar CLAHE para mejorar contraste en B&W
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        gray_enhanced = clahe.apply(gray_combined.astype(np.uint8))
+
+        # Ajuste de contraste y brillo
+        gray_enhanced = cv2.convertScaleAbs(gray_enhanced, alpha=1.2, beta=10)
+
+        # Filtro de nitidez para B&W
+        kernel = np.array([[-1,-1,-1],
+                          [-1, 9,-1],
+                          [-1,-1,-1]])
+        gray_enhanced = cv2.filter2D(gray_enhanced, -1, kernel)
+
+        # Super-resolución si aplica
+        if enhancement_type == "enhancement" and scale_factor > 1:
+            w, h = image.size
+            new_w, new_h = w * scale_factor, h * scale_factor
+            gray_enhanced = cv2.resize(gray_enhanced, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+
+        # Convertir de vuelta a RGB (manteniendo escala de grises)
+        processed = Image.fromarray(gray_enhanced).convert('RGB')
+        return processed
+
+    except Exception as e:
+        logger.warning(f"Error en Black & White: {e}, usando fallback")
+        # Fallback simple pero efectivo
+        return image.convert('L').convert('RGB')
+
+def apply_vintage_filters(image, enhancement_type, scale_factor):
+    """Filtros vintage profesionales con efectos retro."""
+    try:
+        img_array = np.array(image)
+
+        # 1. Sepia básico
+        sepia_filter = np.array([[0.393, 0.769, 0.189],
+                                [0.349, 0.686, 0.168],
+                                [0.272, 0.534, 0.131]])
+        sepia = cv2.transform(img_array, sepia_filter)
+        sepia = np.clip(sepia, 0, 255).astype(np.uint8)
+
+        # 2. Efecto vintage con ajuste de contraste
+        sepia = cv2.convertScaleAbs(sepia, alpha=1.1, beta=-10)
+
+        # 3. Viñeta sutil
+        rows, cols = sepia.shape[:2]
+        kernel_x = cv2.getGaussianKernel(cols, cols/3)
+        kernel_y = cv2.getGaussianKernel(rows, rows/3)
+        kernel = kernel_y * kernel_x.T
+        mask = 255 * kernel / np.linalg.norm(kernel)
+        mask = cv2.convertScaleAbs(mask, alpha=0.8, beta=0)  # Viñeta sutil
+
+        # Aplicar viñeta
+        for c in range(3):
+            sepia[:, :, c] = cv2.multiply(sepia[:, :, c], mask, scale=1/255.0)
+
+        # 4. Granulado sutil (efecto película)
+        noise = np.random.normal(0, 5, sepia.shape).astype(np.uint8)
+        sepia = cv2.add(sepia, noise)
+
+        # 5. Super-resolución si aplica
+        if enhancement_type == "enhancement" and scale_factor > 1:
+            w, h = image.size
+            new_w, new_h = w * scale_factor, h * scale_factor
+            sepia = cv2.resize(sepia, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+
+        processed = Image.fromarray(sepia)
+        return processed
+
+    except Exception as e:
+        logger.warning(f"Error en Vintage Filters: {e}, usando fallback")
+        # Fallback con sepia simple
+        return image.convert('RGB').filter(ImageFilter.SEPIA)
+
 def process_single_image(file, form_data):
     """Procesa una sola imagen con métricas completas."""
     try:
@@ -825,6 +995,21 @@ def process_single_image(file, form_data):
             # Belleza facial profesional con transformación completa
             processed = apply_beauty_face_filters(image, enhancement_type, scale_factor)
             method = f"Beauty Face Pro {scale_factor}x" if enhancement_type == "enhancement" else "Beauty Face Restauración"
+
+        elif enhancement_method == "perfect_enhancement":
+            # Mejora perfecta total combinando todas las técnicas
+            processed = apply_perfect_enhancement(image, enhancement_type, scale_factor)
+            method = f"Perfect Enhancement {scale_factor}x" if enhancement_type == "enhancement" else "Perfect Enhancement"
+
+        elif enhancement_method == "black_white":
+            # Blanco y negro profesional con múltiples algoritmos
+            processed = apply_black_white_filters(image, enhancement_type, scale_factor)
+            method = f"Black & White Pro {scale_factor}x" if enhancement_type == "enhancement" else "Black & White Pro"
+
+        elif enhancement_method == "vintage_filters":
+            # Filtros vintage profesionales
+            processed = apply_vintage_filters(image, enhancement_type, scale_factor)
+            method = f"Vintage Filters {scale_factor}x" if enhancement_type == "enhancement" else "Vintage Filters"
 
         else:  # opencv (default) - Ahora con mejoras más notables
             if enhancement_type == "enhancement" and scale_factor > 1:
