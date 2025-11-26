@@ -97,31 +97,47 @@ def generate_explainability_report(original_array, processed_array, enhancement_
 
     # Interpretación de métricas
     metrics_interpretation = []
-    if psnr > 30:
-        metrics_interpretation.append("Excelente calidad de reconstrucción (PSNR > 30dB)")
-    elif psnr > 25:
-        metrics_interpretation.append("Buena calidad de reconstrucción (PSNR > 25dB)")
+    if psnr is not None:
+        if psnr > 30:
+            metrics_interpretation.append("Excelente calidad de reconstrucción (PSNR > 30dB)")
+        elif psnr > 25:
+            metrics_interpretation.append("Buena calidad de reconstrucción (PSNR > 25dB)")
+        else:
+            metrics_interpretation.append("Calidad aceptable de reconstrucción")
     else:
-        metrics_interpretation.append("Calidad aceptable de reconstrucción")
+        metrics_interpretation.append("PSNR no calculable - La imagen es muy pequeña (menos de 7x7 píxeles)")
 
-    if ssim > 0.9:
-        metrics_interpretation.append("Alta similitud estructural mantenida (SSIM > 0.9)")
-    elif ssim > 0.8:
-        metrics_interpretation.append("Buena similitud estructural (SSIM > 0.8)")
+    if ssim is not None:
+        if ssim > 0.9:
+            metrics_interpretation.append("Alta similitud estructural mantenida (SSIM > 0.9)")
+        elif ssim > 0.8:
+            metrics_interpretation.append("Buena similitud estructural (SSIM > 0.8)")
+        else:
+            metrics_interpretation.append("Similitud estructural aceptable")
     else:
-        metrics_interpretation.append("Similitud estructural aceptable")
+        metrics_interpretation.append("SSIM no calculable - La imagen es muy pequeña para comparar detalles finos")
+
+    # Preparar detalles técnicos con explicaciones amigables
+    technical_details = {
+        'brightness_change': f"{brightness_change:+.1f}",
+        'contrast_change': f"{contrast_change:+.1f}",
+        'original_stats': f"Media: {original_mean:.1f}, Desv: {original_std:.1f}",
+        'processed_stats': f"Media: {processed_mean:.1f}, Desv: {processed_std:.1f}"
+    }
+
+    # Si hay errores técnicos, traducirlos a explicaciones comprensibles
+    if 'error' in locals() and error_message:
+        if 'win_size exceeds image extent' in str(error_message):
+            technical_details['error_explicacion'] = "La imagen es muy pequeña para calcular métricas de calidad. Se necesita al menos 7x7 píxeles para comparar detalles finos."
+        else:
+            technical_details['error_explicacion'] = f"Error técnico: {str(error_message)}"
 
     return {
         'diagnosis': diagnosis,
         'technique_applied': technique_explanation,
         'parameter_justification': parameter_justification,
         'metrics_interpretation': metrics_interpretation,
-        'technical_details': {
-            'brightness_change': f"{brightness_change:+.1f}",
-            'contrast_change': f"{contrast_change:+.1f}",
-            'original_stats': f"Media: {original_mean:.1f}, Desv: {original_std:.1f}",
-            'processed_stats': f"Media: {processed_mean:.1f}, Desv: {processed_std:.1f}"
-        }
+        'technical_details': technical_details
     }
 
 @app.route('/')
@@ -470,8 +486,12 @@ def index():
                     html += `<p><strong>🔧 Detalles técnicos:</strong></p>`;
                     html += `<ul>`;
                     Object.entries(report.explainability.technical_details).forEach(([key, value]) => {
-                        const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                        html += `<li><strong>${label}:</strong> ${value}</li>`;
+                        if (key === 'error_explicacion') {
+                            html += `<li><strong>Explicación del Error:</strong> ${value}</li>`;
+                        } else if (key !== 'error') {
+                            const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            html += `<li><strong>${label}:</strong> ${value}</li>`;
+                        }
                     });
                     html += `</ul>`;
                 }
@@ -715,10 +735,25 @@ def process_single_image(file, form_data):
                 processed = image.filter(ImageFilter.SHARPEN)
                 method = "OpenCV Restauración (Sharpen)"
 
-        # Calcular métricas
+        # Calcular métricas con manejo robusto de errores
         processed_array = np.array(processed)
-        psnr = peak_signal_noise_ratio(original_array, processed_array, data_range=255)
-        ssim = structural_similarity(original_array, processed_array, multichannel=True, data_range=255)
+        try:
+            psnr = peak_signal_noise_ratio(original_array, processed_array, data_range=255)
+        except Exception as e:
+            logger.warning(f"Error calculando PSNR: {e}")
+            psnr = None
+
+        try:
+            # Verificar tamaño mínimo para SSIM (7x7)
+            min_side = min(original_array.shape[:2])
+            if min_side >= 7:
+                ssim = structural_similarity(original_array, processed_array, multichannel=True, data_range=255)
+            else:
+                logger.warning(f"Imagen demasiado pequeña para SSIM: {min_side}x{min_side} < 7x7")
+                ssim = None
+        except Exception as e:
+            logger.warning(f"Error calculando SSIM: {e}")
+            ssim = None
 
         # Guardar imagen procesada para descarga
         filename = f"processed_{file.filename}"
@@ -729,14 +764,23 @@ def process_single_image(file, form_data):
         processed.save(buffer, format='PNG')
         img_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
+        # Preparar métricas con valores seguros
+        metrics = {}
+        if psnr is not None:
+            metrics['psnr'] = f'{psnr:.2f} dB'
+        else:
+            metrics['psnr'] = 'N/A - Imagen demasiado pequeña'
+
+        if ssim is not None:
+            metrics['ssim'] = f'{ssim:.4f}'
+        else:
+            metrics['ssim'] = 'N/A - Imagen demasiado pequeña'
+
         # Reporte estructurado con explicabilidad
         report = {
             'status': '✅ Procesamiento Exitoso',
             'method': method,
-            'metrics': {
-                'psnr': f'{psnr:.2f} dB',
-                'ssim': f'{ssim:.4f}'
-            },
+            'metrics': metrics,
             'technology': 'Pillow + Python',
             'explainability': explainability,
             'download_url': f'/download/{filename}'
@@ -777,7 +821,10 @@ def process_single_image(file, form_data):
                         'technique_applied': 'Se devolvió la imagen original sin modificaciones',
                         'parameter_justification': 'Fallback automático por error en algoritmo principal',
                         'metrics_interpretation': ['Métricas no disponibles en modo fallback'],
-                        'technical_details': {'error': str(proc_err)}
+                        'technical_details': {
+                            'error': str(proc_err),
+                            'error_explicacion': 'Ocurrió un problema técnico durante el procesamiento. Se muestra la imagen original como resultado seguro.'
+                        }
                     }
                 },
                 'metrics': {'psnr': 0, 'ssim': 0}
@@ -798,7 +845,10 @@ def process_single_image(file, form_data):
                         'technique_applied': 'No se pudo procesar la imagen',
                         'parameter_justification': 'Error en carga o procesamiento de imagen',
                         'metrics_interpretation': ['Sin métricas disponibles'],
-                        'technical_details': {'error': str(fallback_err)}
+                        'technical_details': {
+                            'error': str(fallback_err),
+                            'error_explicacion': 'Error crítico al procesar la imagen. No se pudo ni siquiera devolver la imagen original.'
+                        }
                     }
                 }
             }
