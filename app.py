@@ -31,6 +31,99 @@ esrgan_model = None
 gfpgan_model = None
 logger.info("Modelos avanzados deshabilitados para garantizar estabilidad del servidor")
 
+def generate_explainability_report(original_array, processed_array, enhancement_type, enhancement_method, scale_factor, psnr, ssim, method):
+    """Genera reporte de explicabilidad técnica detallado."""
+    # Diagnóstico de la imagen original
+    original_mean = np.mean(original_array)
+    original_std = np.std(original_array)
+    original_contrast = np.max(original_array) - np.min(original_array)
+
+    # Diagnóstico de la imagen procesada
+    processed_mean = np.mean(processed_array)
+    processed_std = np.std(processed_array)
+    processed_contrast = np.max(processed_array) - np.min(processed_array)
+
+    # Análisis de cambios
+    brightness_change = processed_mean - original_mean
+    contrast_change = processed_contrast - original_contrast
+
+    # Diagnóstico basado en estadísticas
+    diagnosis = []
+    if original_std < 30:
+        diagnosis.append("Imagen con bajo contraste y detalle")
+    if original_mean < 100:
+        diagnosis.append("Imagen oscura que requiere ajuste de iluminación")
+    if original_mean > 200:
+        diagnosis.append("Imagen sobreexpuesta")
+    if original_std > 80:
+        diagnosis.append("Imagen con alto nivel de ruido o granulado")
+
+    if not diagnosis:
+        diagnosis.append("Imagen con características estándar")
+
+    # Técnica aplicada y justificación
+    technique_explanation = ""
+    parameter_justification = ""
+
+    if enhancement_method == "opencv":
+        technique_explanation = "Se aplicó procesamiento clásico con OpenCV usando filtros de Pillow"
+        if enhancement_type == "enhancement":
+            parameter_justification = f"Se utilizó interpolación bilineal con factor {scale_factor}x para aumentar resolución manteniendo calidad"
+        else:
+            parameter_justification = "Se aplicó filtro de sharpening para mejorar nitidez sin perder detalle"
+
+    elif enhancement_method == "srcnn":
+        technique_explanation = "Se simuló red neuronal convolucional (SRCNN) con técnicas clásicas avanzadas"
+        if enhancement_type == "enhancement":
+            parameter_justification = f"Interpolación Lanczos con factor {scale_factor}x para super-resolución de alta calidad"
+        else:
+            parameter_justification = "Filtro Unsharp Mask (radio=1, porcentaje=150, umbral=3) para realce adaptativo"
+
+    elif enhancement_method == "real-esrgan":
+        if MODELS_AVAILABLE:
+            technique_explanation = "Modelo Real-ESRGAN (State-of-the-Art) para super-resolución basada en GAN"
+            parameter_justification = f"Factor de escala {scale_factor}x con arquitectura GAN entrenada en datasets masivos"
+        else:
+            technique_explanation = "Fallback de Real-ESRGAN usando técnicas clásicas"
+            parameter_justification = f"Interpolación bicúbica + filtro de detalle con factor {scale_factor}x"
+
+    elif enhancement_method == "gfpgan":
+        if MODELS_AVAILABLE:
+            technique_explanation = "GFPGAN especializado en restauración facial con preservación de identidad"
+            parameter_justification = "Modelo GAN entrenado específicamente para corrección de imperfecciones faciales"
+        else:
+            technique_explanation = "Fallback de GFPGAN usando suavizado morfológico"
+            parameter_justification = "Filtros Unsharp Mask y Smooth More para corrección facial básica"
+
+    # Interpretación de métricas
+    metrics_interpretation = []
+    if psnr > 30:
+        metrics_interpretation.append("Excelente calidad de reconstrucción (PSNR > 30dB)")
+    elif psnr > 25:
+        metrics_interpretation.append("Buena calidad de reconstrucción (PSNR > 25dB)")
+    else:
+        metrics_interpretation.append("Calidad aceptable de reconstrucción")
+
+    if ssim > 0.9:
+        metrics_interpretation.append("Alta similitud estructural mantenida (SSIM > 0.9)")
+    elif ssim > 0.8:
+        metrics_interpretation.append("Buena similitud estructural (SSIM > 0.8)")
+    else:
+        metrics_interpretation.append("Similitud estructural aceptable")
+
+    return {
+        'diagnosis': diagnosis,
+        'technique_applied': technique_explanation,
+        'parameter_justification': parameter_justification,
+        'metrics_interpretation': metrics_interpretation,
+        'technical_details': {
+            'brightness_change': f"{brightness_change:+.1f}",
+            'contrast_change': f"{contrast_change:+.1f}",
+            'original_stats': f"Media: {original_mean:.1f}, Desv: {original_std:.1f}",
+            'processed_stats': f"Media: {processed_mean:.1f}, Desv: {processed_std:.1f}"
+        }
+    }
+
 @app.route('/')
 def index():
     """Página principal con interfaz de usuario completa."""
@@ -318,6 +411,79 @@ def index():
 
         let currentDownloadUrl = null;
 
+        function formatStructuredReport(report) {
+            let html = `<div style="font-family: Arial, sans-serif; line-height: 1.6;">`;
+
+            // Estado y método
+            html += `<h4 style="color: #28a745; margin-bottom: 15px;">${report.status}</h4>`;
+            html += `<p><strong>🎯 Método aplicado:</strong> ${report.method}</p>`;
+            html += `<p><strong>🛠️ Tecnología:</strong> ${report.technology}</p>`;
+
+            // Métricas
+            html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 15px 0;">`;
+            html += `<h5 style="margin: 0 0 10px 0; color: #495057;">📊 Métricas de Calidad</h5>`;
+            html += `<p><strong>PSNR:</strong> ${report.metrics.psnr}</p>`;
+            html += `<p><strong>SSIM:</strong> ${report.metrics.ssim}</p>`;
+            html += `</div>`;
+
+            // Explicabilidad
+            if (report.explainability) {
+                html += `<div style="background: #e9ecef; padding: 15px; border-radius: 5px; margin: 15px 0;">`;
+                html += `<h5 style="margin: 0 0 10px 0; color: #495057;">🔍 Explicación Técnica (XAI)</h5>`;
+
+                // Diagnóstico
+                if (report.explainability.diagnosis && report.explainability.diagnosis.length > 0) {
+                    html += `<p><strong>🔬 Diagnóstico de la imagen:</strong></p>`;
+                    html += `<ul>`;
+                    report.explainability.diagnosis.forEach(item => {
+                        html += `<li>${item}</li>`;
+                    });
+                    html += `</ul>`;
+                }
+
+                // Técnica aplicada
+                if (report.explainability.technique_applied) {
+                    html += `<p><strong>⚙️ Técnica aplicada:</strong> ${report.explainability.technique_applied}</p>`;
+                }
+
+                // Justificación de parámetros
+                if (report.explainability.parameter_justification) {
+                    html += `<p><strong>📋 Justificación de parámetros:</strong> ${report.explainability.parameter_justification}</p>`;
+                }
+
+                // Interpretación de métricas
+                if (report.explainability.metrics_interpretation && report.explainability.metrics_interpretation.length > 0) {
+                    html += `<p><strong>📈 Interpretación de métricas:</strong></p>`;
+                    html += `<ul>`;
+                    report.explainability.metrics_interpretation.forEach(item => {
+                        html += `<li>${item}</li>`;
+                    });
+                    html += `</ul>`;
+                }
+
+                // Detalles técnicos
+                if (report.explainability.technical_details) {
+                    html += `<p><strong>🔧 Detalles técnicos:</strong></p>`;
+                    html += `<ul>`;
+                    Object.entries(report.explainability.technical_details).forEach(([key, value]) => {
+                        const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        html += `<li><strong>${label}:</strong> ${value}</li>`;
+                    });
+                    html += `</ul>`;
+                }
+
+                html += `</div>`;
+            }
+
+            // Descarga
+            if (report.download_url) {
+                html += `<p><strong>⬇️ Descarga:</strong> <a href="${report.download_url}" target="_blank">${report.download_url}</a></p>`;
+            }
+
+            html += `</div>`;
+            return html;
+        }
+
         async function processImage() {
             if (!selectedFile) {
                 alert('Por favor selecciona una imagen primero.');
@@ -351,7 +517,10 @@ def index():
 
                 if (data.success) {
                     document.getElementById('processedImage').src = data.image;
-                    report.textContent = data.report;
+
+                    // Mostrar reporte estructurado con explicabilidad
+                    const reportDiv = document.getElementById('report');
+                    reportDiv.innerHTML = formatStructuredReport(data.report);
                     results.style.display = 'grid';
                     report.style.display = 'block';
 
@@ -499,13 +668,18 @@ def process_single_image(file, form_data):
         processed.save(buffer, format='PNG')
         img_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
-        report = f"""✅ Procesamiento Exitoso
-
-🎯 Método: {method}
-📊 PSNR: {psnr:.2f} dB
-🎯 SSIM: {ssim:.4f}
-🛠️ Tecnología: Pillow + Python
-⬇️ Descarga: /download/{filename}"""
+        # Reporte estructurado con explicabilidad
+        report = {
+            'status': '✅ Procesamiento Exitoso',
+            'method': method,
+            'metrics': {
+                'psnr': f'{psnr:.2f} dB',
+                'ssim': f'{ssim:.4f}'
+            },
+            'technology': 'Pillow + Python',
+            'explainability': explainability,
+            'download_url': f'/download/{filename}'
+        }
 
         return {
             'success': True,
