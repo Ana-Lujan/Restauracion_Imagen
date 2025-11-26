@@ -1039,23 +1039,36 @@ def process_single_image(file, form_data):
             logger.error(f"Error creando array numpy de imagen procesada: {arr_err}")
             raise ValueError(f"No se pudo procesar la imagen para métricas: {str(arr_err)}")
 
-        # Calcular métricas PSNR y SSIM usando OpenCV para máxima precisión
+        # Calcular métricas PSNR y SSIM con múltiples fallbacks para máxima robustez
+        psnr = None
+        ssim = None
+
         try:
-            # PSNR usando OpenCV
+            # PSNR usando OpenCV (máxima precisión)
             psnr = cv2.PSNR(original_array, processed_array)
             logger.info(f"PSNR calculado con OpenCV: {psnr}")
         except Exception as e:
             logger.warning(f"Error calculando PSNR con OpenCV: {e}")
             try:
-                # Fallback con scikit-image
+                # Fallback 1: scikit-image
                 psnr = peak_signal_noise_ratio(original_array, processed_array, data_range=255)
                 logger.info(f"PSNR calculado con scikit-image: {psnr}")
             except Exception as e2:
                 logger.warning(f"Error calculando PSNR con scikit-image: {e2}")
-                psnr = None
+                try:
+                    # Fallback 2: Implementación básica con NumPy
+                    mse = np.mean((original_array.astype(np.float64) - processed_array.astype(np.float64)) ** 2)
+                    if mse == 0:
+                        psnr = float('inf')
+                    else:
+                        psnr = 20 * np.log10(255.0 / np.sqrt(mse))
+                    logger.info(f"PSNR calculado con NumPy básico: {psnr}")
+                except Exception as e3:
+                    logger.error(f"Error calculando PSNR con NumPy: {e3}")
+                    psnr = None
 
         try:
-            # SSIM usando scikit-image (OpenCV no tiene SSIM directo)
+            # SSIM usando scikit-image con parámetros correctos
             min_side = min(original_array.shape[:2])
             if min_side >= 7:
                 ssim = structural_similarity(original_array, processed_array, multichannel=True, data_range=255, channel_axis=2)
@@ -1107,6 +1120,14 @@ def process_single_image(file, form_data):
         }
 
     except Exception as proc_err:
+        # DEBUGGING CRÍTICO: Mostrar stack trace completo
+        import traceback
+        print("\n--- ERROR CRÍTICO DE PROCESAMIENTO FORZADO ---")
+        print(f"Error específico: {proc_err}")
+        print("Stack trace completo:")
+        traceback.print_exc()
+        print("--- FIN DEL STACK TRACE ---\n")
+
         logger.error(f"Error procesamiento: {proc_err}")
         # Fallback con estructura consistente
         try:
