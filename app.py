@@ -533,7 +533,11 @@ def index():
                     // Cargar analytics
                     loadAnalytics();
                 } else {
-                    throw new Error(data.error);
+                    // Error manejado con estructura XAI
+                    const reportDiv = document.getElementById('report');
+                    reportDiv.innerHTML = formatStructuredReport(data.report);
+                    report.style.display = 'block';
+                    // No mostrar imagen procesada, mantener imagen original si existe
                 }
 
             } catch (err) {
@@ -574,21 +578,74 @@ def process():
             for file in files:
                 result = process_single_image(file, request.form)
                 results.append(result)
-            return jsonify({'results': results, 'batch': True})
+            return jsonify({
+                'success': True,
+                'batch': True,
+                'results': results
+            })
 
         # Procesamiento individual
         if 'image' not in request.files:
-            return jsonify({'error': 'Archivo no encontrado'}), 400
+            return jsonify({
+                'success': False,
+                'error': 'Archivo no encontrado',
+                'report': {
+                    'status': '❌ Error de validación',
+                    'method': 'Error',
+                    'metrics': {'psnr': 'N/A', 'ssim': 'N/A'},
+                    'technology': 'Error',
+                    'explainability': {
+                        'diagnosis': ['Archivo de imagen no encontrado'],
+                        'technique_applied': 'Validación fallida',
+                        'parameter_justification': 'No se recibió archivo de imagen',
+                        'metrics_interpretation': ['Sin procesamiento realizado'],
+                        'technical_details': {'error': 'Missing image file'}
+                    }
+                }
+            })
 
         file = request.files['image']
         if not file or file.filename == '':
-            return jsonify({'error': 'Archivo vacío'}), 400
+            return jsonify({
+                'success': False,
+                'error': 'Archivo vacío',
+                'report': {
+                    'status': '❌ Error de validación',
+                    'method': 'Error',
+                    'metrics': {'psnr': 'N/A', 'ssim': 'N/A'},
+                    'technology': 'Error',
+                    'explainability': {
+                        'diagnosis': ['Archivo de imagen vacío'],
+                        'technique_applied': 'Validación fallida',
+                        'parameter_justification': 'Archivo sin contenido',
+                        'metrics_interpretation': ['Sin procesamiento realizado'],
+                        'technical_details': {'error': 'Empty file'}
+                    }
+                }
+            })
 
-        return process_single_image(file, request.form)
+        result = process_single_image(file, request.form)
+        return jsonify(result)
 
     except Exception as e:
         logger.error(f"Error general: {e}")
-        return jsonify({'error': 'Error interno del servidor'}), 500
+        return jsonify({
+            'success': False,
+            'error': 'Error interno del servidor',
+            'report': {
+                'status': '❌ Error del servidor',
+                'method': 'Error',
+                'metrics': {'psnr': 'N/A', 'ssim': 'N/A'},
+                'technology': 'Error',
+                'explainability': {
+                    'diagnosis': ['Error interno del servidor'],
+                    'technique_applied': 'Fallo crítico del sistema',
+                    'parameter_justification': 'Error no manejado en el servidor',
+                    'metrics_interpretation': ['Sin métricas disponibles'],
+                    'technical_details': {'error': str(e)}
+                }
+            }
+        })
 
 def process_single_image(file, form_data):
     """Procesa una sola imagen con métricas completas."""
@@ -691,7 +748,7 @@ def process_single_image(file, form_data):
 
     except Exception as proc_err:
         logger.error(f"Error procesamiento: {proc_err}")
-        # Fallback
+        # Fallback con estructura consistente
         try:
             image.seek(0)
             orig_image = Image.open(file)
@@ -702,15 +759,45 @@ def process_single_image(file, form_data):
             orig_image.save(buffer, format='PNG')
             img_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
+            # Estructura consistente para frontend
             return {
                 'success': True,
                 'image': f'data:image/png;base64,{img_b64}',
-                'report': '⚠️ Procesamiento básico (imagen original)',
+                'report': {
+                    'status': '⚠️ Procesamiento básico (imagen original)',
+                    'method': 'Fallback - Imagen original',
+                    'metrics': {'psnr': 'N/A', 'ssim': 'N/A'},
+                    'technology': 'Pillow',
+                    'explainability': {
+                        'diagnosis': ['Error en procesamiento avanzado'],
+                        'technique_applied': 'Se devolvió la imagen original sin modificaciones',
+                        'parameter_justification': 'Fallback automático por error en algoritmo principal',
+                        'metrics_interpretation': ['Métricas no disponibles en modo fallback'],
+                        'technical_details': {'error': str(proc_err)}
+                    }
+                },
                 'metrics': {'psnr': 0, 'ssim': 0}
             }
         except Exception as fallback_err:
             logger.error(f"Error fallback: {fallback_err}")
-            return {'error': 'Error procesando imagen'}
+            # Estructura de error consistente
+            return {
+                'success': False,
+                'error': 'Error procesando imagen',
+                'report': {
+                    'status': '❌ Error crítico',
+                    'method': 'Error',
+                    'metrics': {'psnr': 'N/A', 'ssim': 'N/A'},
+                    'technology': 'Error',
+                    'explainability': {
+                        'diagnosis': ['Error irrecuperable en procesamiento'],
+                        'technique_applied': 'No se pudo procesar la imagen',
+                        'parameter_justification': 'Error en carga o procesamiento de imagen',
+                        'metrics_interpretation': ['Sin métricas disponibles'],
+                        'technical_details': {'error': str(fallback_err)}
+                    }
+                }
+            }
 
 @app.route('/health')
 def health():
