@@ -152,13 +152,6 @@ Este proyecto fue desarrollado como trabajo final para la materia **"Procesamien
 - **Materia**: Procesamiento de Imagen
 - **Año**: 2025
 
-### Colaboración y agradecimientos
-
-Este proyecto representa el resultado de combinar conocimientos académicos con práctica profesional. Agradecemos especialmente:
-
-- **Profesor Matías Barreto** por su guía metodológica y apoyo técnico
-- **Hugging Face** por proporcionar una plataforma excepcional para compartir aplicaciones de IA
-- **La comunidad open source** por desarrollar y mantener las bibliotecas que hicieron posible este proyecto
 
 ## 📄 Licencia y uso
 
