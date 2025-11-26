@@ -1,4 +1,4 @@
-# Dependencies for image restoration (modelos SOTA se instalan en HF)
+# Dependencies for advanced image restoration
 Pillow>=9.0.0
 flask>=2.0.0
 gunicorn>=20.0.0
@@ -6,3 +6,5 @@ torch>=2.0.0
 torchvision>=0.15.0
 numpy>=1.24.0
 opencv-python-headless>=4.8.0
+realesrgan>=0.3.0
+gfpgan>=1.3.8

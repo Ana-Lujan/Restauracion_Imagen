@@ -19,10 +19,10 @@ try:
     from realesrgan import RealESRGANer
     from gfpgan import GFPGANer
     MODELS_AVAILABLE = True
-    logger.info("Modelos avanzados cargados correctamente")
+    print("Modelos avanzados cargados correctamente")
 except ImportError as e:
     MODELS_AVAILABLE = False
-    logger.warning(f"Modelos avanzados no disponibles: {e}")
+    print(f"Modelos avanzados no disponibles: {e}")
 
 # Configurar logging para desarrollo académico
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
