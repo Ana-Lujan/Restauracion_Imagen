@@ -14,61 +14,20 @@ from io import BytesIO
 from PIL import Image, ImageFilter
 import logging
 
-# Imports para modelos avanzados (con fallback)
-try:
-    from realesrgan import RealESRGANer
-    from gfpgan import GFPGANer
-    MODELS_AVAILABLE = True
-    print("Modelos avanzados cargados correctamente")
-except ImportError as e:
-    MODELS_AVAILABLE = False
-    print(f"Modelos avanzados no disponibles: {e}")
-
 # Configurar logging para desarrollo académico
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-# Funciones de procesamiento simplificadas para compatibilidad HF
-# Funciones simplificadas solo con Pillow
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB para imágenes HD/4K
 
-# Configuración segura para archivos temporales
-TEMP_DIR = Path(tempfile.gettempdir()) / 'restauracion_uploads'
-TEMP_DIR.mkdir(exist_ok=True)
+# Gestión segura de archivos temporales con tempfile (sin directorios manuales)
 
-# Inicialización de modelos avanzados
+# Modelos avanzados deshabilitados temporalmente para estabilidad
+MODELS_AVAILABLE = False
 esrgan_model = None
 gfpgan_model = None
-
-if MODELS_AVAILABLE:
-    try:
-        # Real-ESRGAN para super-resolución
-        esrgan_model = RealESRGANer(
-            scale=4,
-            model_path='https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth',
-            model=None,
-            tile=0,
-            tile_pad=10,
-            pre_pad=0,
-            half=False
-        )
-        logger.info("Real-ESRGAN inicializado")
-
-        # GFPGAN para restauración facial
-        gfpgan_model = GFPGANer(
-            model_path='https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth',
-            upscale=4,
-            arch='clean',
-            channel_multiplier=2,
-            bg_upsampler=esrgan_model
-        )
-        logger.info("GFPGAN inicializado")
-
-    except Exception as e:
-        logger.error(f"Error inicializando modelos: {e}")
-        esrgan_model = None
-        gfpgan_model = None
+logger.info("Modelos avanzados deshabilitados para garantizar estabilidad del servidor")
 
 @app.route('/')
 def index():
