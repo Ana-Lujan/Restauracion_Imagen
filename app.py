@@ -29,7 +29,7 @@ UPLOAD_FOLDER.mkdir(exist_ok=True)
 
 @app.route('/')
 def index():
-    """Página principal con interfaz de usuario."""
+    """Página principal con interfaz de usuario completa."""
     logger.info("Acceso a página principal")
     return """
 <!DOCTYPE html>
@@ -37,76 +37,230 @@ def index():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Restauración de Imágenes</title>
+    <title>🎨 Sistema de Restauración y Enhancement de Imágenes</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f0f0f0; }
-        h1 { color: #333; text-align: center; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .upload-section { text-align: center; margin: 20px 0; padding: 20px; border: 2px dashed #ccc; border-radius: 8px; }
-        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        .results { display: none; margin-top: 20px; }
-        .image-container { display: inline-block; margin: 10px; }
-        img { max-width: 300px; border: 1px solid #ddd; border-radius: 4px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; color: white; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .presentation { background: rgba(255, 255, 255, 0.95); color: #333; padding: 25px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .main-content { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        .upload-section { text-align: center; margin-bottom: 30px; border: 2px dashed #ddd; border-radius: 10px; padding: 40px; transition: all 0.3s ease; }
+        .upload-section:hover { border-color: #667eea; background: #f8f9ff; }
+        .file-input { display: none; }
+        .upload-button { background: #667eea; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: all 0.3s ease; margin: 10px; }
+        .upload-button:hover { background: #5a6fd8; transform: translateY(-2px); }
+        .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .setting-group { background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; }
+        .setting-group h3 { margin-bottom: 15px; color: #333; font-size: 1.1em; }
+        select, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; margin-bottom: 10px; }
+        .process-button { background: #28a745; color: white; padding: 15px 40px; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; transition: all 0.3s ease; width: 100%; margin-top: 20px; }
+        .process-button:hover { background: #218838; transform: translateY(-2px); }
+        .process-button:disabled { background: #6c757d; cursor: not-allowed; transform: none; }
+        .results { display: none; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; }
+        .image-container { text-align: center; }
+        .image-container h3 { margin-bottom: 15px; color: #333; }
+        .image-preview { max-width: 100%; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        .report { background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #28a745; white-space: pre-line; font-family: 'Courier New', monospace; font-size: 14px; max-height: 400px; overflow-y: auto; margin-top: 20px; }
+        .loading { display: none; text-align: center; margin: 20px 0; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; border-left: 4px solid #dc3545; margin: 20px 0; display: none; }
+        .footer { text-align: center; color: white; margin-top: 30px; opacity: 0.8; }
+        @media (max-width: 768px) { .results { grid-template-columns: 1fr; } .settings { grid-template-columns: 1fr; } .header h1 { font-size: 2em; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎨 Sistema de Restauración y Enhancement de Imágenes</h1>
-        <p>Proyecto académico - IFTS 24</p>
-
-        <div class="upload-section">
-            <h2>📤 Subir Imagen</h2>
-            <input type="file" id="imageInput" accept="image/*">
-            <br><br>
-            <button onclick="processImage()">🚀 Procesar Imagen</button>
+        <div class="header">
+            <h1>🎨 Sistema de Restauración y Enhancement de Imágenes</h1>
+            <p>Procesamiento avanzado con técnicas de deep learning • IFT 2025</p>
         </div>
 
-        <div class="results" id="results">
-            <div class="image-container">
-                <h3>📷 Imagen Original</h3>
-                <img id="originalImage" alt="Original">
+        <div class="presentation">
+            <h2>📚 Información del Proyecto</h2>
+            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+                <strong>Profesor:</strong> Matías Barreto<br>
+                <strong>Alumno:</strong> Ana Lujan<br>
+                <strong>Materia:</strong> Procesamiento de Imagen<br>
+                <strong>Institución:</strong> IFTS 24 - Ciencia de Datos e Inteligencia Artificial
             </div>
-            <div class="image-container">
-                <h3>✨ Imagen Procesada</h3>
-                <img id="processedImage" alt="Procesada">
-            </div>
+            <p>Este proyecto demuestra técnicas avanzadas de procesamiento de imágenes con deep learning.</p>
         </div>
 
-        <div id="report" style="margin-top: 20px; padding: 10px; background: #f8f8f8; border-radius: 4px;"></div>
+        <div class="main-content">
+            <div class="upload-section" id="uploadSection">
+                <h2>📤 Subir Imagen</h2>
+                <p>Arrastra y suelta una imagen aquí, o haz clic para seleccionar</p>
+                <input type="file" id="imageInput" class="file-input" accept="image/*">
+                <br>
+                <button class="upload-button" onclick="document.getElementById('imageInput').click()">Seleccionar Imagen</button>
+                <div id="fileInfo"></div>
+            </div>
+
+            <div class="settings">
+                <div class="setting-group">
+                    <h3>🎯 Tipo de Procesamiento</h3>
+                    <select id="enhancementType">
+                        <option value="restauracion">Restauración</option>
+                        <option value="enhancement">Super-Resolución</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <h3>🔧 Método</h3>
+                    <select id="enhancementMethod">
+                        <option value="opencv">OpenCV (Procesamiento clásico)</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <h3>📏 Factor de Escala</h3>
+                    <select id="scaleFactor">
+                        <option value="2">2x</option>
+                        <option value="4">4x</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="process-button" id="processButton" onclick="processImage()" disabled>🚀 Procesar Imagen</button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Procesando imagen... Esto puede tomar unos segundos.</p>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="results" id="results">
+                <div class="image-container">
+                    <h3>📷 Imagen Original</h3>
+                    <img id="originalImage" class="image-preview" alt="Imagen original">
+                </div>
+                <div class="image-container">
+                    <h3>✨ Imagen Procesada</h3>
+                    <img id="processedImage" class="image-preview" alt="Imagen procesada">
+                </div>
+            </div>
+
+            <div class="report" id="report" style="display: none;"></div>
+        </div>
+
+        <div class="footer">
+            <p>Desarrollado con técnicas avanzadas de procesamiento de imágenes • IFT 2025</p>
+        </div>
     </div>
 
     <script>
-        async function processImage() {
-            const input = document.getElementById('imageInput');
-            if (!input.files[0]) {
-                alert('Selecciona una imagen primero');
+        let selectedFile = null;
+
+        const uploadSection = document.getElementById('uploadSection');
+        const imageInput = document.getElementById('imageInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const processButton = document.getElementById('processButton');
+
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Por favor selecciona un archivo de imagen válido.');
                 return;
             }
 
-            const file = input.files[0];
-            const formData = new FormData();
-            formData.append('image', file);
-            formData.append('enhancement_type', 'restauracion');
-            formData.append('enhancement_method', 'opencv');
-            formData.append('scale_factor', '2');
+            selectedFile = file;
+            fileInfo.innerHTML = `<p><strong>Archivo seleccionado:</strong> ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</p>`;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('originalImage').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            processButton.disabled = false;
+        }
+
+        async function processImage() {
+            if (!selectedFile) {
+                alert('Por favor selecciona una imagen primero.');
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const results = document.getElementById('results');
+            const report = document.getElementById('report');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            results.style.display = 'none';
+            report.style.display = 'none';
+            processButton.disabled = true;
 
             try {
-                const response = await fetch('/process', { method: 'POST', body: formData });
+                const formData = new FormData();
+                formData.append('image', selectedFile);
+                formData.append('enhancement_type', document.getElementById('enhancementType').value);
+                formData.append('enhancement_method', document.getElementById('enhancementMethod').value);
+                formData.append('scale_factor', document.getElementById('scaleFactor').value);
+
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
                 const data = await response.json();
 
                 if (data.success) {
-                    document.getElementById('originalImage').src = URL.createObjectURL(file);
                     document.getElementById('processedImage').src = data.image;
-                    document.getElementById('results').style.display = 'block';
-                    document.getElementById('report').textContent = data.report;
+                    report.textContent = data.report;
+                    results.style.display = 'grid';
+                    report.style.display = 'block';
                 } else {
-                    alert('Error: ' + data.error);
+                    throw new Error(data.error);
                 }
+
             } catch (err) {
-                alert('Error de conexión: ' + err.message);
+                error.textContent = `Error: ${err.message}`;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+                processButton.disabled = false;
             }
         }
+
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('/health');
+                if (!response.ok) {
+                    document.getElementById('error').textContent = 'Error: No se puede conectar con el servidor';
+                    document.getElementById('error').style.display = 'block';
+                }
+            } catch (err) {
+                document.getElementById('error').textContent = 'Error: Servidor no disponible';
+                document.getElementById('error').style.display = 'block';
+            }
+        });
     </script>
 </body>
 </html>
