@@ -613,7 +613,8 @@ def process_single_image(file, form_data):
             psnr = "N/A (Super-resolución)"
             ssim = "N/A (Super-resolución)"
 
-        # Guardar imagen procesada para descarga
+        # Crear directorio temp_uploads si no existe y guardar imagen procesada
+        os.makedirs('temp_uploads', exist_ok=True)
         filename = f"processed_{file.filename}"
         processed.save(os.path.join('temp_uploads', filename))
 
