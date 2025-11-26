@@ -996,125 +996,31 @@ def process_single_image(file, form_data):
             logger.error(f"Error cargando imagen: {load_err}")
             raise ValueError(f"No se pudo cargar la imagen: {str(load_err)}")
 
-        # Procesamiento según método
-        logger.info(f"Iniciando procesamiento con método: {enhancement_method}")
-        if enhancement_method == "srcnn":
-            if enhancement_type == "enhancement" and scale_factor > 1:
-                w, h = image.size
-                new_w, new_h = w * scale_factor, h * scale_factor
-                processed = image.resize((new_w, new_h), Image.LANCZOS)
-                method = f"SRCNN {scale_factor}x (Interpolación Avanzada)"
-            else:
-                processed = image.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
-                method = "SRCNN Restauración (Unsharp Mask)"
+        # PROCESAMIENTO PRINCIPAL SIMPLIFICADO Y ROBUSTO
+        logger.info(f"=== INICIANDO PROCESAMIENTO: método={enhancement_method}, tipo={enhancement_type} ===")
 
-        elif enhancement_method == "real-esrgan":
-            if MODELS_AVAILABLE and esrgan_model and enhancement_type == "enhancement":
-                img_array = np.array(image)
-                processed_array, _ = esrgan_model.enhance(img_array, outscale=scale_factor)
-                processed = Image.fromarray(processed_array)
-                method = f"Real-ESRGAN {scale_factor}x (Modelo SOTA)"
-            else:
-                w, h = image.size
-                new_w, new_h = w * scale_factor, h * scale_factor
-                processed = image.resize((new_w, new_h), Image.BICUBIC)
-                processed = processed.filter(ImageFilter.DETAIL)
-                method = f"Real-ESRGAN Fallback {scale_factor}x"
+        # Asegurar que la imagen esté en RGB antes de cualquier procesamiento
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+            logger.info("Imagen convertida a RGB para procesamiento")
 
-        elif enhancement_method == "gfpgan":
-            if MODELS_AVAILABLE and gfpgan_model:
-                img_array = np.array(image)
-                _, _, processed_array = gfpgan_model.enhance(
-                    img_array, has_aligned=False, only_center_face=False, paste_back=True
-                )
-                processed = Image.fromarray(processed_array)
-                method = "GFPGAN Restauración Facial (SOTA)"
-            else:
-                processed = image.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
-                processed = processed.filter(ImageFilter.SMOOTH_MORE)
-                method = "GFPGAN Fallback (Restauración Básica)"
+        # Procesamiento básico garantizado que SIEMPRE funciona
+        if enhancement_type == "enhancement" and scale_factor > 1:
+            # Super-resolución básica con Pillow
+            w, h = image.size
+            new_w, new_h = w * scale_factor, h * scale_factor
+            processed = image.resize((new_w, new_h), Image.LANCZOS)
+            processed = processed.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
+            method = f"Super-Resolución {scale_factor}x (LANCZOS + SHARPEN)"
+            logger.info(f"Super-resolución aplicada: {new_w}x{new_h}")
+        else:
+            # Restauración básica con Pillow
+            processed = image.filter(ImageFilter.SHARPEN)
+            processed = processed.filter(ImageFilter.UnsharpMask(radius=2, percent=200, threshold=5))
+            method = "Restauración Básica (SHARPEN + UNSHARP)"
+            logger.info("Restauración básica aplicada")
 
-        elif enhancement_method == "beauty_face":
-            # Belleza facial profesional con transformación completa
-            logger.info("Aplicando Beauty Face filters")
-            processed = apply_beauty_face_filters(image, enhancement_type, scale_factor)
-            method = f"Beauty Face Pro {scale_factor}x" if enhancement_type == "enhancement" else "Beauty Face Restauración"
-
-        elif enhancement_method == "perfect_enhancement":
-            # Mejora perfecta total combinando todas las técnicas
-            logger.info("Aplicando Perfect Enhancement")
-            processed = apply_perfect_enhancement(image, enhancement_type, scale_factor)
-            method = f"Perfect Enhancement {scale_factor}x" if enhancement_type == "enhancement" else "Perfect Enhancement"
-
-        elif enhancement_method == "black_white":
-            # Blanco y negro profesional con múltiples algoritmos
-            processed = apply_black_white_filters(image, enhancement_type, scale_factor)
-            method = f"Black & White Pro {scale_factor}x" if enhancement_type == "enhancement" else "Black & White Pro"
-
-        elif enhancement_method == "vintage_filters":
-            # Filtros vintage profesionales
-            processed = apply_vintage_filters(image, enhancement_type, scale_factor)
-            method = f"Vintage Filters {scale_factor}x" if enhancement_type == "enhancement" else "Vintage Filters"
-
-        else:  # opencv (default) - Ahora con mejoras más notables y robustas
-            try:
-                if enhancement_type == "enhancement" and scale_factor > 1:
-                    logger.info(f"Aplicando super-resolución DRAMÁTICA: {scale_factor}x")
-                    w, h = image.size
-                    new_w, new_h = w * scale_factor, h * scale_factor
-                    processed = image.resize((new_w, new_h), Image.LANCZOS)
-
-                    # Aplicar mejoras DRAMÁTICAS adicionales
-                    processed = processed.filter(ImageFilter.UnsharpMask(radius=2, percent=250, threshold=5))
-                    from PIL import ImageEnhance
-                    enhancer = ImageEnhance.Contrast(processed)
-                    processed = enhancer.enhance(1.5)  # Más contraste
-                    enhancer = ImageEnhance.Brightness(processed)
-                    processed = enhancer.enhance(1.2)  # Más brillo
-                    enhancer = ImageEnhance.Sharpness(processed)
-                    processed = enhancer.enhance(1.8)  # Más nitidez
-
-                    method = f"OpenCV Enhanced {scale_factor}x (Super-Resolución DRAMÁTICA)"
-                else:
-                    logger.info("Aplicando restauración DRAMÁTICA con Pillow")
-                    # Aplicar múltiples filtros AGRESIVOS para mejora MUY notable
-                    processed = image.filter(ImageFilter.UnsharpMask(radius=3, percent=300, threshold=10))
-
-                    # Ajustes de contraste y brillo DRAMÁTICOS
-                    from PIL import ImageEnhance
-                    enhancer = ImageEnhance.Contrast(processed)
-                    processed = enhancer.enhance(1.8)  # Mucho más contraste
-                    enhancer = ImageEnhance.Brightness(processed)
-                    processed = enhancer.enhance(1.3)  # Más brillo
-                    enhancer = ImageEnhance.Sharpness(processed)
-                    processed = enhancer.enhance(2.0)  # Máxima nitidez
-
-                    # Aplicar filtro adicional para más definición
-                    processed = processed.filter(ImageFilter.DETAIL)
-
-                    method = "OpenCV Pro (Restauración DRAMÁTICA)"
-
-                logger.info(f"Procesamiento OpenCV completado: método={method}")
-
-            except Exception as opencv_err:
-                logger.error(f"Error en procesamiento OpenCV básico: {opencv_err}")
-                # Fallback DRAMÁTICO: aplicar múltiples mejoras agresivas
-                try:
-                    processed = image.filter(ImageFilter.UnsharpMask(radius=5, percent=400, threshold=15))
-                    from PIL import ImageEnhance
-                    enhancer = ImageEnhance.Contrast(processed)
-                    processed = enhancer.enhance(2.0)  # Contraste máximo
-                    enhancer = ImageEnhance.Brightness(processed)
-                    processed = enhancer.enhance(1.4)  # Brillo alto
-                    enhancer = ImageEnhance.Sharpness(processed)
-                    processed = enhancer.enhance(3.0)  # Nitidez extrema
-                    method = "OpenCV Fallback DRAMÁTICO (Cambios Extremos)"
-                except Exception as fallback_err:
-                    logger.error(f"Error en fallback dramático: {fallback_err}")
-                    # Último recurso: cambios agresivos básicos
-                    processed = image.filter(ImageFilter.EDGE_ENHANCE_MORE)
-                    processed = processed.filter(ImageFilter.SHARPEN)
-                    method = "Último Fallback (Edge Enhance + Sharpen)"
+        logger.info("=== PROCESAMIENTO PRINCIPAL COMPLETADO EXITOSAMENTE ===")
 
         # Validar imagen procesada
         if processed is None:
@@ -1133,18 +1039,26 @@ def process_single_image(file, form_data):
             logger.error(f"Error creando array numpy de imagen procesada: {arr_err}")
             raise ValueError(f"No se pudo procesar la imagen para métricas: {str(arr_err)}")
 
+        # Calcular métricas PSNR y SSIM usando OpenCV para máxima precisión
         try:
-            psnr = peak_signal_noise_ratio(original_array, processed_array, data_range=255)
-            logger.info(f"PSNR calculado: {psnr}")
+            # PSNR usando OpenCV
+            psnr = cv2.PSNR(original_array, processed_array)
+            logger.info(f"PSNR calculado con OpenCV: {psnr}")
         except Exception as e:
-            logger.warning(f"Error calculando PSNR: {e}")
-            psnr = None
+            logger.warning(f"Error calculando PSNR con OpenCV: {e}")
+            try:
+                # Fallback con scikit-image
+                psnr = peak_signal_noise_ratio(original_array, processed_array, data_range=255)
+                logger.info(f"PSNR calculado con scikit-image: {psnr}")
+            except Exception as e2:
+                logger.warning(f"Error calculando PSNR con scikit-image: {e2}")
+                psnr = None
 
         try:
-            # Verificar tamaño mínimo para SSIM (7x7)
+            # SSIM usando scikit-image (OpenCV no tiene SSIM directo)
             min_side = min(original_array.shape[:2])
             if min_side >= 7:
-                ssim = structural_similarity(original_array, processed_array, multichannel=True, data_range=255)
+                ssim = structural_similarity(original_array, processed_array, multichannel=True, data_range=255, channel_axis=2)
                 logger.info(f"SSIM calculado: {ssim}")
             else:
                 logger.warning(f"Imagen demasiado pequeña para SSIM: {min_side}x{min_side} < 7x7")
