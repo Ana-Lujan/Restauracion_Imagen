@@ -75,7 +75,7 @@ def index():
     <div class="container">
         <div class="header">
             <h1>🎨 Sistema de Restauración y Enhancement de Imágenes</h1>
-            <p>Procesamiento avanzado con técnicas de deep learning • IFT 2025</p>
+            <p>Procesamiento avanzado con técnicas de deep learning • IFTS °24 Año 2025</p>
         </div>
 
         <div class="presentation">
@@ -88,30 +88,30 @@ def index():
             </div>
 
             <h3>🎯 Trabajo sobre: Restauración y Enhancement</h3>
-            <p><em>Ideal si te interesa: Mejorar calidad visual, ajustar características de imágenes</em></p>
+            <p><em>Ideal si te interesa: Mejorar la calidad visual y ajustar las características de las imágenes.</em></p>
 
             <h3>💡 Casos de Uso</h3>
             <ul>
-                <li><strong>Ajuste inteligente de iluminación y contraste</strong></li>
-                <li><strong>Corrección de color automática</strong></li>
-                <li><strong>Mejora de nitidez adaptativa</strong></li>
-                <li><strong>Reducción de artefactos de compresión</strong></li>
-                <li><strong>HDR: combinar múltiples exposiciones</strong></li>
+                <li><strong>Ajuste inteligente de iluminación y contraste.</strong></li>
+                <li><strong>Corrección de color automática.</strong></li>
+                <li><strong>Mejora de nitidez adaptativa.</strong></li>
+                <li><strong>Reducción de artefactos de compresión.</strong></li>
+                <li><strong>HDR: Combinación de múltiples exposiciones.</strong></li>
             </ul>
 
             <h3>🤖 Modelos Sugeridos</h3>
             <ul>
-                <li><strong>Modelos de difusión para image-to-image con prompts descriptivos</strong></li>
-                <li><strong>InstantID o similar para preservar identidad mientras se mejora</strong></li>
-                <li><strong>ControlNet con edge detection para mejora guiada</strong></li>
+                <li><strong>Modelos de difusión para image-to-image con prompts descriptivos.</strong></li>
+                <li><strong>InstantID o similares para preservar la identidad mientras se mejora la calidad.</strong></li>
+                <li><strong>ControlNet con edge detection (detección de bordes) para una mejora guiada.</strong></li>
             </ul>
 
             <h3>🔬 Conceptos de Procesamiento Digital Aplicados</h3>
             <ul>
-                <li><strong>Histogramas y ecualización</strong></li>
-                <li><strong>Transformaciones de intensidad</strong></li>
-                <li><strong>Filtros de realce</strong></li>
-                <li><strong>Operaciones morfológicas</strong></li>
+                <li><strong>Histogramas y ecualización.</strong></li>
+                <li><strong>Transformaciones de intensidad.</strong></li>
+                <li><strong>Filtros de realce.</strong></li>
+                <li><strong>Operaciones morfológicas.</strong></li>
             </ul>
 
             <p>Este proyecto demuestra cómo la integración de técnicas clásicas de procesamiento de imágenes con modelos modernos de aprendizaje profundo puede crear soluciones poderosas y accesibles para mejorar la calidad visual de las imágenes.</p>
