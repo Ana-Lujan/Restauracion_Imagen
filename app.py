@@ -794,14 +794,28 @@ def apply_beauty_face_filters(image, enhancement_type, scale_factor):
 def apply_perfect_enhancement(image, enhancement_type, scale_factor):
     """Mejora perfecta total combinando todas las técnicas disponibles."""
     try:
+        logger.info(f"Aplicando Perfect Enhancement: tipo={enhancement_type}, escala={scale_factor}")
+        # Verificar que la imagen esté en modo RGB
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+            logger.info("Convertida imagen a RGB")
+
+        # Verificar tamaño mínimo de imagen
+        if image.size[0] < 10 or image.size[1] < 10:
+            logger.warning(f"Imagen demasiado pequeña: {image.size}, usando Pillow básico")
+            raise ValueError("Imagen demasiado pequeña para procesamiento OpenCV")
+
         # Aplicar secuencia completa de mejoras
         img_array = np.array(image)
+        logger.info(f"Imagen convertida a array numpy: shape={img_array.shape}")
 
         # 1. CLAHE para contraste base
+        logger.info("Aplicando CLAHE...")
         lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
         lab[:, :, 0] = clahe.apply(lab[:, :, 0])
         img_array = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+        logger.info("CLAHE aplicado exitosamente")
 
         # 2. Corrección de color automática
         img_array = cv2.convertScaleAbs(img_array, alpha=1.1, beta=5)
@@ -838,15 +852,27 @@ def apply_perfect_enhancement(image, enhancement_type, scale_factor):
         return processed
 
     except Exception as e:
-        logger.warning(f"Error en Perfect Enhancement: {e}, usando fallback")
-        # Fallback con mejoras básicas pero efectivas
-        processed = image.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
-        from PIL import ImageEnhance
-        enhancer = ImageEnhance.Contrast(processed)
-        processed = enhancer.enhance(1.2)
-        enhancer = ImageEnhance.Brightness(processed)
-        processed = enhancer.enhance(1.1)
-        return processed
+        logger.warning(f"Error en Perfect Enhancement: {e}, usando fallback robusto")
+        try:
+            # Fallback con mejoras básicas pero efectivas usando solo Pillow
+            processed = image.convert('RGB')
+
+            # Aplicar mejoras secuenciales con Pillow
+            processed = processed.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
+
+            # Ajustes de contraste y brillo
+            enhancer = ImageEnhance.Contrast(processed)
+            processed = enhancer.enhance(1.2)
+            enhancer = ImageEnhance.Brightness(processed)
+            processed = enhancer.enhance(1.1)
+            enhancer = ImageEnhance.Sharpness(processed)
+            processed = enhancer.enhance(1.3)
+
+            logger.info("Fallback Pillow aplicado exitosamente")
+            return processed
+        except Exception as fallback_err:
+            logger.error(f"Error en fallback Pillow: {fallback_err}, devolviendo imagen original")
+            return image.convert('RGB')
 
 def apply_black_white_filters(image, enhancement_type, scale_factor):
     """Blanco y negro profesional con múltiples algoritmos."""
@@ -955,6 +981,7 @@ def process_single_image(file, form_data):
         original_array = np.array(image)
 
         # Procesamiento según método
+        logger.info(f"Iniciando procesamiento con método: {enhancement_method}")
         if enhancement_method == "srcnn":
             if enhancement_type == "enhancement" and scale_factor > 1:
                 w, h = image.size
@@ -993,11 +1020,13 @@ def process_single_image(file, form_data):
 
         elif enhancement_method == "beauty_face":
             # Belleza facial profesional con transformación completa
+            logger.info("Aplicando Beauty Face filters")
             processed = apply_beauty_face_filters(image, enhancement_type, scale_factor)
             method = f"Beauty Face Pro {scale_factor}x" if enhancement_type == "enhancement" else "Beauty Face Restauración"
 
         elif enhancement_method == "perfect_enhancement":
             # Mejora perfecta total combinando todas las técnicas
+            logger.info("Aplicando Perfect Enhancement")
             processed = apply_perfect_enhancement(image, enhancement_type, scale_factor)
             method = f"Perfect Enhancement {scale_factor}x" if enhancement_type == "enhancement" else "Perfect Enhancement"
 
