@@ -973,12 +973,28 @@ def process_single_image(file, form_data):
 
         logger.info(f"Procesando: tipo={enhancement_type}, método={enhancement_method}, escala={scale_factor}")
 
-        # Cargar imagen original
-        image = Image.open(file)
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
+        # Cargar imagen original con validación robusta
+        try:
+            image = Image.open(file)
+            logger.info(f"Imagen cargada: formato={image.format}, modo={image.mode}, tamaño={image.size}")
 
-        original_array = np.array(image)
+            # Convertir a RGB si es necesario
+            if image.mode not in ['RGB', 'L', 'P']:
+                logger.warning(f"Modo de imagen no estándar: {image.mode}, convirtiendo a RGB")
+                image = image.convert('RGB')
+            elif image.mode != 'RGB':
+                image = image.convert('RGB')
+
+            # Verificar tamaño mínimo
+            if image.size[0] < 1 or image.size[1] < 1:
+                raise ValueError("Imagen con dimensiones inválidas")
+
+            original_array = np.array(image)
+            logger.info(f"Array numpy creado: shape={original_array.shape}, dtype={original_array.dtype}")
+
+        except Exception as load_err:
+            logger.error(f"Error cargando imagen: {load_err}")
+            raise ValueError(f"No se pudo cargar la imagen: {str(load_err)}")
 
         # Procesamiento según método
         logger.info(f"Iniciando procesamiento con método: {enhancement_method}")
@@ -1040,40 +1056,67 @@ def process_single_image(file, form_data):
             processed = apply_vintage_filters(image, enhancement_type, scale_factor)
             method = f"Vintage Filters {scale_factor}x" if enhancement_type == "enhancement" else "Vintage Filters"
 
-        else:  # opencv (default) - Ahora con mejoras más notables
-            if enhancement_type == "enhancement" and scale_factor > 1:
-                w, h = image.size
-                new_w, new_h = w * scale_factor, h * scale_factor
-                processed = image.resize((new_w, new_h), Image.LANCZOS)
+        else:  # opencv (default) - Ahora con mejoras más notables y robustas
+            try:
+                if enhancement_type == "enhancement" and scale_factor > 1:
+                    logger.info(f"Aplicando super-resolución: {scale_factor}x")
+                    w, h = image.size
+                    new_w, new_h = w * scale_factor, h * scale_factor
+                    processed = image.resize((new_w, new_h), Image.LANCZOS)
 
-                # Aplicar mejoras adicionales para hacer el cambio más notable
-                processed = processed.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
-                from PIL import ImageEnhance
-                enhancer = ImageEnhance.Contrast(processed)
-                processed = enhancer.enhance(1.2)
-                enhancer = ImageEnhance.Brightness(processed)
-                processed = enhancer.enhance(1.1)
+                    # Aplicar mejoras adicionales para hacer el cambio más notable
+                    processed = processed.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
+                    from PIL import ImageEnhance
+                    enhancer = ImageEnhance.Contrast(processed)
+                    processed = enhancer.enhance(1.2)
+                    enhancer = ImageEnhance.Brightness(processed)
+                    processed = enhancer.enhance(1.1)
 
-                method = f"OpenCV Enhanced {scale_factor}x (Super-Resolución + Mejoras)"
-            else:
-                # Aplicar múltiples filtros para mejora notable
-                processed = image.filter(ImageFilter.UnsharpMask(radius=2, percent=200, threshold=5))
+                    method = f"OpenCV Enhanced {scale_factor}x (Super-Resolución + Mejoras)"
+                else:
+                    logger.info("Aplicando restauración avanzada con Pillow")
+                    # Aplicar múltiples filtros para mejora notable
+                    processed = image.filter(ImageFilter.UnsharpMask(radius=2, percent=200, threshold=5))
 
-                # Ajustes de contraste y brillo
-                from PIL import ImageEnhance
-                enhancer = ImageEnhance.Contrast(processed)
-                processed = enhancer.enhance(1.3)
-                enhancer = ImageEnhance.Brightness(processed)
-                processed = enhancer.enhance(1.1)
-                enhancer = ImageEnhance.Sharpness(processed)
-                processed = enhancer.enhance(1.5)
+                    # Ajustes de contraste y brillo
+                    from PIL import ImageEnhance
+                    enhancer = ImageEnhance.Contrast(processed)
+                    processed = enhancer.enhance(1.3)
+                    enhancer = ImageEnhance.Brightness(processed)
+                    processed = enhancer.enhance(1.1)
+                    enhancer = ImageEnhance.Sharpness(processed)
+                    processed = enhancer.enhance(1.5)
 
-                method = "OpenCV Pro (Restauración Avanzada)"
+                    method = "OpenCV Pro (Restauración Avanzada)"
+
+                logger.info(f"Procesamiento OpenCV completado: método={method}")
+
+            except Exception as opencv_err:
+                logger.error(f"Error en procesamiento OpenCV básico: {opencv_err}")
+                # Fallback final: al menos aplicar sharpen básico
+                processed = image.filter(ImageFilter.SHARPEN)
+                method = "OpenCV Fallback (Sharpen Básico)"
+
+        # Validar imagen procesada
+        if processed is None:
+            raise ValueError("La imagen procesada es None")
+
+        # Asegurar que la imagen procesada esté en RGB
+        if processed.mode != 'RGB':
+            processed = processed.convert('RGB')
+            logger.info("Imagen procesada convertida a RGB")
 
         # Calcular métricas con manejo robusto de errores
-        processed_array = np.array(processed)
+        try:
+            processed_array = np.array(processed)
+            logger.info(f"Array procesado creado: shape={processed_array.shape}")
+        except Exception as arr_err:
+            logger.error(f"Error creando array numpy de imagen procesada: {arr_err}")
+            raise ValueError(f"No se pudo procesar la imagen para métricas: {str(arr_err)}")
+
         try:
             psnr = peak_signal_noise_ratio(original_array, processed_array, data_range=255)
+            logger.info(f"PSNR calculado: {psnr}")
         except Exception as e:
             logger.warning(f"Error calculando PSNR: {e}")
             psnr = None
@@ -1083,6 +1126,7 @@ def process_single_image(file, form_data):
             min_side = min(original_array.shape[:2])
             if min_side >= 7:
                 ssim = structural_similarity(original_array, processed_array, multichannel=True, data_range=255)
+                logger.info(f"SSIM calculado: {ssim}")
             else:
                 logger.warning(f"Imagen demasiado pequeña para SSIM: {min_side}x{min_side} < 7x7")
                 ssim = None
