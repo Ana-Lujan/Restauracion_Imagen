@@ -415,15 +415,19 @@ def index():
             let html = `<div style="font-family: Arial, sans-serif; line-height: 1.6;">`;
 
             // Estado y método
-            html += `<h4 style="color: #28a745; margin-bottom: 15px;">${report.status}</h4>`;
-            html += `<p><strong>🎯 Método aplicado:</strong> ${report.method}</p>`;
-            html += `<p><strong>🛠️ Tecnología:</strong> ${report.technology}</p>`;
+            html += `<h4 style="color: ${report.status.includes('✅') ? '#28a745' : report.status.includes('⚠️') ? '#ffc107' : '#dc3545'}; margin-bottom: 15px;">${report.status || 'Estado desconocido'}</h4>`;
+            html += `<p><strong>🎯 Método aplicado:</strong> ${report.method || 'Método no especificado'}</p>`;
+            html += `<p><strong>🛠️ Tecnología:</strong> ${report.technology || 'Tecnología no especificada'}</p>`;
 
             // Métricas
             html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 15px 0;">`;
             html += `<h5 style="margin: 0 0 10px 0; color: #495057;">📊 Métricas de Calidad</h5>`;
-            html += `<p><strong>PSNR:</strong> ${report.metrics.psnr}</p>`;
-            html += `<p><strong>SSIM:</strong> ${report.metrics.ssim}</p>`;
+            if (report.metrics && report.metrics.psnr !== undefined && report.metrics.ssim !== undefined) {
+                html += `<p><strong>PSNR:</strong> ${report.metrics.psnr}</p>`;
+                html += `<p><strong>SSIM:</strong> ${report.metrics.ssim}</p>`;
+            } else {
+                html += `<p><em>Métricas no disponibles</em></p>`;
+            }
             html += `</div>`;
 
             // Explicabilidad
@@ -432,7 +436,7 @@ def index():
                 html += `<h5 style="margin: 0 0 10px 0; color: #495057;">🔍 Explicación Técnica (XAI)</h5>`;
 
                 // Diagnóstico
-                if (report.explainability.diagnosis && report.explainability.diagnosis.length > 0) {
+                if (report.explainability.diagnosis && Array.isArray(report.explainability.diagnosis) && report.explainability.diagnosis.length > 0) {
                     html += `<p><strong>🔬 Diagnóstico de la imagen:</strong></p>`;
                     html += `<ul>`;
                     report.explainability.diagnosis.forEach(item => {
@@ -452,7 +456,7 @@ def index():
                 }
 
                 // Interpretación de métricas
-                if (report.explainability.metrics_interpretation && report.explainability.metrics_interpretation.length > 0) {
+                if (report.explainability.metrics_interpretation && Array.isArray(report.explainability.metrics_interpretation) && report.explainability.metrics_interpretation.length > 0) {
                     html += `<p><strong>📈 Interpretación de métricas:</strong></p>`;
                     html += `<ul>`;
                     report.explainability.metrics_interpretation.forEach(item => {
@@ -462,7 +466,7 @@ def index():
                 }
 
                 // Detalles técnicos
-                if (report.explainability.technical_details) {
+                if (report.explainability.technical_details && typeof report.explainability.technical_details === 'object') {
                     html += `<p><strong>🔧 Detalles técnicos:</strong></p>`;
                     html += `<ul>`;
                     Object.entries(report.explainability.technical_details).forEach(([key, value]) => {
