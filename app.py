@@ -72,30 +72,34 @@ def index():
         /* Estilos específicos para la sección de presentación */
         .presentation h2 {
             color: #667eea;
-            margin-bottom: 25px;
+            margin-bottom: 35px;
             font-size: 1.8em;
             text-align: center;
         }
 
         .presentation h3 {
             color: #5a6fd8;
-            margin: 30px 0 15px 0;
+            margin: 40px 0 20px 0;
             font-size: 1.3em;
         }
 
         .presentation p {
-            line-height: 1.7;
-            margin-bottom: 20px;
+            line-height: 1.8;
+            margin-bottom: 25px;
         }
 
         .presentation ul {
-            margin: 15px 0 20px 0;
-            padding-left: 25px;
+            margin: 20px 0 30px 0;
+            padding-left: 30px;
         }
 
         .presentation li {
-            margin-bottom: 10px;
-            line-height: 1.5;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .presentation .academic-info {
+            margin-bottom: 30px !important;
         }
 
         @media (max-width: 768px) { .results { grid-template-columns: 1fr; } .settings { grid-template-columns: 1fr; } .header h1 { font-size: 2em; } }
