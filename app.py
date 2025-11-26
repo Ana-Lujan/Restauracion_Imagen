@@ -532,7 +532,7 @@ def process_single_image(file, form_data):
             logger.error(f"Error cargando imagen: {load_err}")
             raise ValueError(f"No se pudo cargar la imagen: {str(load_err)}")
 
-        # PROCESAMIENTO PRINCIPAL SIMPLIFICADO Y ROBUSTO
+        # PROCESAMIENTO PRINCIPAL CON EFECTOS VISUALES DRAMÁTICOS Y DIFERENCIADOS
         logger.info(f"=== INICIANDO PROCESAMIENTO: método={enhancement_method}, tipo={enhancement_type} ===")
 
         # Asegurar que la imagen esté en RGB antes de cualquier procesamiento
@@ -540,21 +540,107 @@ def process_single_image(file, form_data):
             image = image.convert('RGB')
             logger.info("Imagen convertida a RGB para procesamiento")
 
-        # Procesamiento básico garantizado que SIEMPRE funciona
-        if enhancement_type == "enhancement" and scale_factor > 1:
-            # Super-resolución básica con Pillow
-            w, h = image.size
-            new_w, new_h = w * scale_factor, h * scale_factor
-            processed = image.resize((new_w, new_h), Image.LANCZOS)
-            processed = processed.filter(ImageFilter.UnsharpMask(radius=1, percent=150, threshold=3))
-            method = f"Super-Resolución {scale_factor}x (LANCZOS + SHARPEN)"
-            logger.info(f"Super-resolución aplicada: {new_w}x{new_h}")
-        else:
-            # Restauración básica con Pillow
-            processed = image.filter(ImageFilter.SHARPEN)
-            processed = processed.filter(ImageFilter.UnsharpMask(radius=2, percent=200, threshold=5))
-            method = "Restauración Básica (SHARPEN + UNSHARP)"
-            logger.info("Restauración básica aplicada")
+        # Algoritmos con efectos visuales DRAMÁTICOS y diferenciados
+        if enhancement_method == "black_white":
+            # Blanco y negro PROFESIONAL con alto contraste
+            img_array = np.array(image)
+            # Convertir a escala de grises con método profesional
+            gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+            # Aplicar CLAHE para alto contraste
+            clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8,8))
+            enhanced_gray = clahe.apply(gray.astype(np.uint8))
+            # Ecualización adicional para máximo contraste
+            enhanced_gray = cv2.equalizeHist(enhanced_gray)
+            # Filtro de nitidez extrema
+            kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+            enhanced_gray = cv2.filter2D(enhanced_gray, -1, kernel)
+            # Convertir de vuelta a RGB
+            processed = Image.fromarray(enhanced_gray).convert('RGB')
+            method = "Blanco y Negro Profesional (Alto Contraste + CLAHE)"
+
+        elif enhancement_method == "perfect_enhancement":
+            # Mejora PERFECTA con transformación completa
+            img_array = np.array(image)
+            # CLAHE para contraste dramático
+            lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
+            clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8,8))
+            lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+            img_array = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+            # Ajustes de brillo y contraste extremos
+            img_array = cv2.convertScaleAbs(img_array, alpha=1.5, beta=20)
+            # Nitidez extrema con Unsharp Mask agresivo
+            gaussian = cv2.GaussianBlur(img_array, (0, 0), 3.0)
+            img_array = cv2.addWeighted(img_array, 2.5, gaussian, -1.5, 0)
+            processed = Image.fromarray(img_array)
+            method = "Perfect Enhancement (CLAHE + Alto Contraste + Nitidez Extrema)"
+
+        elif enhancement_method == "beauty_face":
+            # Belleza facial con efectos dramáticos
+            img_array = np.array(image)
+            # CLAHE agresivo
+            lab = cv2.cvtColor(img_array, cv2.COLOR_RGB2LAB)
+            clahe = cv2.createCLAHE(clipLimit=5.0, tileGridSize=(8,8))
+            lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+            img_array = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+            # Suavizado bilateral para piel perfecta
+            img_array = cv2.bilateralFilter(img_array, 11, 80, 80)
+            # Ajuste de saturación para pieles vibrantes
+            hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV).astype(np.float32)
+            hsv[:, :, 1] = hsv[:, :, 1] * 1.4
+            hsv = np.clip(hsv, 0, 255).astype(np.uint8)
+            img_array = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+            processed = Image.fromarray(img_array)
+            method = "Beauty Face Pro (CLAHE + Bilateral + Saturación)"
+
+        elif enhancement_method == "vintage_filters":
+            # Filtros vintage con efectos retro dramáticos
+            img_array = np.array(image)
+            # Sepia intenso
+            sepia_filter = np.array([[0.393, 0.769, 0.189],
+                                    [0.349, 0.686, 0.168],
+                                    [0.272, 0.534, 0.131]])
+            sepia = cv2.transform(img_array, sepia_filter)
+            sepia = np.clip(sepia, 0, 255).astype(np.uint8)
+            # Contraste vintage extremo
+            sepia = cv2.convertScaleAbs(sepia, alpha=1.3, beta=-30)
+            # Granulado de película
+            noise = np.random.normal(0, 15, sepia.shape).astype(np.uint8)
+            sepia = cv2.add(sepia, noise)
+            processed = Image.fromarray(sepia)
+            method = "Vintage Filters (Sepia + Alto Contraste + Granulado)"
+
+        else:  # opencv (default) - Restauración DRAMÁTICA
+            if enhancement_type == "enhancement" and scale_factor > 1:
+                # Super-resolución con efectos visuales extremos
+                w, h = image.size
+                new_w, new_h = w * scale_factor, h * scale_factor
+                processed = image.resize((new_w, new_h), Image.LANCZOS)
+                # Aplicar mejoras DRAMÁTICAS
+                processed = processed.filter(ImageFilter.UnsharpMask(radius=2, percent=300, threshold=10))
+                # Ajustes extremos de contraste y brillo
+                from PIL import ImageEnhance
+                enhancer = ImageEnhance.Contrast(processed)
+                processed = enhancer.enhance(2.0)  # Contraste extremo
+                enhancer = ImageEnhance.Brightness(processed)
+                processed = enhancer.enhance(1.3)  # Brillo alto
+                enhancer = ImageEnhance.Sharpness(processed)
+                processed = enhancer.enhance(2.5)  # Nitidez máxima
+                method = f"Super-Resolución DRAMÁTICA {scale_factor}x (LANCZOS + Efectos Extremos)"
+            else:
+                # Restauración con efectos VISUALES EXTREMOS
+                processed = image.filter(ImageFilter.SHARPEN)
+                processed = processed.filter(ImageFilter.UnsharpMask(radius=3, percent=400, threshold=10))
+                # Ajustes de contraste y brillo DRAMÁTICOS
+                from PIL import ImageEnhance
+                enhancer = ImageEnhance.Contrast(processed)
+                processed = enhancer.enhance(1.8)  # Contraste muy alto
+                enhancer = ImageEnhance.Brightness(processed)
+                processed = enhancer.enhance(1.2)  # Brillo aumentado
+                enhancer = ImageEnhance.Sharpness(processed)
+                processed = enhancer.enhance(2.0)  # Nitidez máxima
+                # Filtro adicional para definición extrema
+                processed = processed.filter(ImageFilter.EDGE_ENHANCE_MORE)
+                method = "Restauración DRAMÁTICA (SHARPEN Extremo + Alto Contraste)"
 
         logger.info("=== PROCESAMIENTO PRINCIPAL COMPLETADO EXITOSAMENTE ===")
 
