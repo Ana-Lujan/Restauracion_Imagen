@@ -68,6 +68,36 @@ def index():
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; border-left: 4px solid #dc3545; margin: 20px 0; display: none; }
         .footer { text-align: center; color: white; margin-top: 30px; opacity: 0.8; }
+
+        /* Estilos específicos para la sección de presentación */
+        .presentation h2 {
+            color: #667eea;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+            text-align: center;
+        }
+
+        .presentation h3 {
+            color: #5a6fd8;
+            margin: 30px 0 15px 0;
+            font-size: 1.3em;
+        }
+
+        .presentation p {
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .presentation ul {
+            margin: 15px 0 20px 0;
+            padding-left: 25px;
+        }
+
+        .presentation li {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
         @media (max-width: 768px) { .results { grid-template-columns: 1fr; } .settings { grid-template-columns: 1fr; } .header h1 { font-size: 2em; } }
     </style>
 </head>
